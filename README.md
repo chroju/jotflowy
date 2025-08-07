@@ -74,12 +74,28 @@ npm install
 # Start development server
 npm run dev
 
-# Build for production
-npm run build
+# Run tests
+npm run test
+
+# Run tests once
+npm run test:run
+
+# Run tests with UI
+npm run test:ui
 
 # Deploy to Cloudflare Workers
 npm run deploy
 ```
+
+### Testing
+
+This project includes unit tests for critical functions:
+
+- **Storage utilities**: localStorage error handling, JSON parsing safety
+- **Settings validation**: Data corruption recovery and validation
+- **Workflowy utilities**: Date handling, cache management, timestamp formatting
+
+Tests use [Vitest](https://vitest.dev/) with jsdom environment for browser APIs.
 
 ## Architecture
 
