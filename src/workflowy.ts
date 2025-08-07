@@ -120,7 +120,7 @@ export function buildNoteWithTimestamp(note: string, includeTimestamp: boolean):
 
   const now = new Date();
   const timestamp = now.toLocaleString('sv-SE', {
-    timeZone: 'Asia/Tokyo',
+    timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
   }).slice(0, 16); // "2025-01-08 14:30"
 
   if (note.trim() === '') {

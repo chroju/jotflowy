@@ -63,7 +63,7 @@ Save locations are stored in your browser's local storage. You can configure:
 ### API Settings
 - **API Key**: Your Workflowy API key (stored securely in browser)
 - **Default Location**: Your preferred save location
-- **Timestamp Format**: YYYY-MM-DD HH:mm (Japan timezone)
+- **Timestamp Format**: YYYY-MM-DD HH:mm (local timezone)
 
 ## Development
 
