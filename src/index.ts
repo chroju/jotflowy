@@ -100,6 +100,20 @@ async function handleSend(request: Request, ctx: ExecutionContext, corsHeaders: 
       });
     }
 
+    if (error instanceof WorkflowyAPIError) {
+      console.error('Workflowy API Error:', error.message, error.status);
+      return new Response(JSON.stringify({
+        error: error.message || 'Workflowy API error',
+        status: error.status,
+      }), {
+        status: 422, // Unprocessable Entity
+        headers: {
+          'Content-Type': 'application/json',
+          ...corsHeaders,
+        },
+      });
+    }
+
     return new Response(JSON.stringify({
       error: 'Internal server error',
     }), {
@@ -184,6 +198,7 @@ async function processNoteCreation(data: z.infer<typeof requestSchema>): Promise
       console.error('Workflowy API Error:', error.message, error.status);
     }
     
-    return {};
+    // Re-throw the error so it can be caught by handleSend
+    throw error;
   }
 }

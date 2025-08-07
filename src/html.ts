@@ -864,6 +864,7 @@ export const html = `
             } catch (error) {
                 console.error('Submit error:', error);
                 showToast(error.message || 'Failed to save note', 'error');
+                // Keep the text in the form when error occurs (text is NOT cleared)
             } finally {
                 // Reset submit button
                 submitBtn.textContent = '📝 Submit';
