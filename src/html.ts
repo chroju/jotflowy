@@ -580,6 +580,16 @@ export const html = `
                     </button>
                 </div>
                 
+                <div class="input-group">
+                    <div class="checkbox-wrapper">
+                        <input type="checkbox" id="urlExpansionCheckbox" checked>
+                        <label for="urlExpansionCheckbox">Expand URLs to Markdown links</label>
+                    </div>
+                    <div style="font-size: 12px; color: var(--text-muted); margin-top: 8px;">
+                        <i class="fas fa-info-circle"></i> When enabled, URLs like "https://example.com" become "[Page Title](https://example.com)"
+                    </div>
+                </div>
+                
                 <hr style="border-color: var(--border-color); margin: 20px 0;">
                 
                 <div class="button-row">
@@ -792,6 +802,7 @@ export const html = `
         // Settings state with safe localStorage access
         let currentLocationIndex = safeGetItem('jotflowy_selectedLocation', '');
         let timestampEnabled = safeGetItem('jotflowy_timestampEnabled', 'true') !== 'false';
+        let urlExpansionEnabled = safeGetItem('jotflowy_urlExpansionEnabled', 'true') !== 'false';
         const historyLimit = 30; // Fixed limit
 
         // Initialize app
@@ -802,6 +813,7 @@ export const html = `
             // Load saved location preference
             currentLocationIndex = safeGetItem('jotflowy_selectedLocation', '');
             timestampEnabled = safeGetItem('jotflowy_timestampEnabled', 'true') !== 'false';
+            urlExpansionEnabled = safeGetItem('jotflowy_urlExpansionEnabled', 'true') !== 'false';
             
             initializeDefaultLocations();
             loadSettings();
@@ -829,6 +841,7 @@ export const html = `
 
         function loadSettings() {
             document.getElementById('apiKeyInput').value = settings.apiKey;
+            document.getElementById('urlExpansionCheckbox').checked = urlExpansionEnabled;
             updateSettingsModal();
         }
         
@@ -926,6 +939,8 @@ export const html = `
             // Settings
             document.getElementById('saveSettingsBtn').addEventListener('click', function() {
                 settings.apiKey = document.getElementById('apiKeyInput').value.trim();
+                urlExpansionEnabled = document.getElementById('urlExpansionCheckbox').checked;
+                safeSetItem('jotflowy_urlExpansionEnabled', urlExpansionEnabled.toString());
                 
                 saveSettings();
                 updateMainUI(); // Update main UI with new settings
@@ -1031,6 +1046,7 @@ export const html = `
                         saveLocationName: location.name,
                         createDaily: shouldCreateDaily,
                         includeTimestamp,
+                        expandUrls: urlExpansionEnabled,
                         apiKey: settings.apiKey,
                         dailyNoteCache: settings.dailyNoteCache,
                     }),
@@ -1321,6 +1337,8 @@ export const html = `
             safeSetItem('jotflowy_selectedLocation', currentLocationIndex);
             timestampEnabled = true;
             safeSetItem('jotflowy_timestampEnabled', 'true');
+            urlExpansionEnabled = true;
+            safeSetItem('jotflowy_urlExpansionEnabled', 'true');
 
             saveSettings();
             updateMainUI();

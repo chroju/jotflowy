@@ -14,6 +14,7 @@ const requestSchema = z.object({
   saveLocationName: z.string(),
   createDaily: z.boolean().default(false),
   includeTimestamp: z.boolean().default(false),
+  expandUrls: z.boolean().default(true),
   apiKey: z.string().min(1),
   dailyNoteCache: z.record(z.string(), z.string()).optional().default({}),
 });
@@ -140,12 +141,13 @@ async function processNoteCreation(data: z.infer<typeof requestSchema>): Promise
     let title = data.title;
     let saveLocationUrl = data.saveLocationUrl;
 
-    // Handle URL title extraction
-    if (isValidHttpUrl(title) && !title.includes('x.com')) {
+    // Handle URL title extraction if enabled
+    if (data.expandUrls && isValidHttpUrl(title) && !title.includes('x.com')) {
       try {
         const extractedTitle = await getTitleFromUrl(title);
         if (extractedTitle) {
-          title = `${extractedTitle} ${title}`;
+          // Format as Markdown link: [title](url)
+          title = `[${extractedTitle}](${title})`;
         }
       } catch (error) {
         console.warn('Failed to extract title from URL:', error);
