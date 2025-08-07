@@ -102,11 +102,20 @@ async function handleSend(request: Request, ctx: ExecutionContext, corsHeaders: 
 
     if (error instanceof WorkflowyAPIError) {
       console.error('Workflowy API Error:', error.message, error.status);
+      
+      // Use the original HTTP status code if available, otherwise default to 422
+      let responseStatus = 422;
+      if (error.status === 401 || error.status === 403 || error.status === 404 || error.status === 429) {
+        responseStatus = error.status;
+      } else if (error.status && error.status >= 500) {
+        responseStatus = error.status;
+      }
+      
       return new Response(JSON.stringify({
         error: error.message || 'Workflowy API error',
         status: error.status,
       }), {
-        status: 422, // Unprocessable Entity
+        status: responseStatus,
         headers: {
           'Content-Type': 'application/json',
           ...corsHeaders,
