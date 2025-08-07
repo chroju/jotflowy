@@ -25,18 +25,22 @@ export const html = `
         body, html {
             margin: 0;
             padding: 0;
+            min-height: 100vh;
             height: 100vh;
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
             background: var(--bg-primary);
             color: var(--text-primary);
             overflow-x: hidden;
+            /* Support iOS Safari viewport changes on keyboard show */
+            -webkit-overflow-scrolling: touch;
         }
 
         .container {
             display: flex;
             flex-direction: column;
-            height: 100vh;
+            min-height: 100vh;
             padding: 20px;
+            padding-bottom: calc(20px + env(keyboard-inset-height, 0px));
             gap: 16px;
         }
 
@@ -89,6 +93,11 @@ export const html = `
             display: flex;
             flex-direction: column;
             gap: 16px;
+            position: sticky;
+            bottom: 0;
+            background: var(--bg-primary);
+            padding-top: 16px;
+            margin-top: auto;
         }
 
         .control-row {
@@ -332,6 +341,46 @@ export const html = `
         .history-item-meta {
             font-size: 12px;
             color: var(--text-muted);
+        }
+
+        /* Mobile keyboard handling */
+        @media (max-width: 767px) {
+            .container {
+                overflow-y: auto;
+                max-height: 100vh;
+            }
+            
+            body.keyboard-active .controls-section {
+                position: fixed;
+                bottom: 0;
+                left: 20px;
+                right: 20px;
+                z-index: 100;
+                padding: 16px 0;
+                border-top: 1px solid var(--border-color);
+                box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
+            }
+            
+            body.keyboard-active .form-section {
+                padding-bottom: 80px;
+            }
+            
+            /* Modal keyboard handling */
+            body.keyboard-active .modal-content {
+                position: relative;
+                max-height: 70vh;
+                overflow-y: auto;
+                margin-top: 5%;
+            }
+            
+            body.keyboard-active .modal-content .button-row {
+                position: sticky;
+                bottom: 0;
+                background: var(--bg-primary);
+                padding-top: 16px;
+                margin-top: 16px;
+                border-top: 1px solid var(--border-color);
+            }
         }
 
         @media (min-width: 768px) {
@@ -657,6 +706,11 @@ export const html = `
 
             // Submit form
             submitBtn.addEventListener('click', handleSubmit);
+
+            // Mobile keyboard handling
+            if (window.innerWidth <= 767) {
+                setupMobileKeyboardHandling();
+            }
 
             // Modal controls
             bindModalControls();
@@ -1037,6 +1091,56 @@ export const html = `
             saveSettings();
         }
 
+
+        function setupMobileKeyboardHandling() {
+            // Include all input elements including those in modals
+            const inputElements = [textArea, noteArea];
+            
+            function addKeyboardHandlingToInput(input) {
+                input.addEventListener('focusin', () => {
+                    document.body.classList.add('keyboard-active');
+                    // Small delay to allow for keyboard animation
+                    setTimeout(() => {
+                        input.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }, 300);
+                });
+                
+                input.addEventListener('focusout', () => {
+                    // Delay to check if focus moved to another input
+                    setTimeout(() => {
+                        const focusedElement = document.activeElement;
+                        const allInputs = document.querySelectorAll('input, textarea');
+                        const isAnyInputFocused = Array.from(allInputs).includes(focusedElement);
+                        if (!isAnyInputFocused) {
+                            document.body.classList.remove('keyboard-active');
+                        }
+                    }, 100);
+                });
+            }
+            
+            // Add handling to main form inputs
+            inputElements.forEach(addKeyboardHandlingToInput);
+            
+            // Add handling to all existing modal inputs
+            const allInputs = document.querySelectorAll('input, textarea');
+            allInputs.forEach(addKeyboardHandlingToInput);
+
+            // Handle viewport changes for iOS Safari
+            let initialViewportHeight = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+            
+            if (window.visualViewport) {
+                window.visualViewport.addEventListener('resize', () => {
+                    const currentHeight = window.visualViewport.height;
+                    const heightDifference = initialViewportHeight - currentHeight;
+                    
+                    if (heightDifference > 150) { // Keyboard likely shown
+                        document.body.classList.add('keyboard-active');
+                    } else {
+                        document.body.classList.remove('keyboard-active');
+                    }
+                });
+            }
+        }
 
         function showToast(message, type = 'success') {
             const toast = document.createElement('div');
