@@ -91,7 +91,7 @@ export function sanitizeInput(input: string): string {
 export function formatTimestamp(includeDate: boolean = false): string {
   const now = new Date();
   const options: Intl.DateTimeFormatOptions = {
-    timeZone: 'Asia/Tokyo',
+    timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
     hour: '2-digit',
     minute: '2-digit',
     hour12: false,
