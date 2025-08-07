@@ -592,7 +592,7 @@ export const html = `
     <div id="historyModal" class="modal">
         <div class="modal-content">
             <div class="modal-header">
-                <h2 class="modal-title">Post History</h2>
+                <h2 class="modal-title">Post History (up to 30)</h2>
                 <button class="close" id="historyClose">×</button>
             </div>
             <div class="modal-body">
@@ -666,6 +666,7 @@ export const html = `
         // Settings state
         let currentLocationIndex = localStorage.getItem('jotflowy_selectedLocation') || '';
         let timestampEnabled = localStorage.getItem('jotflowy_timestampEnabled') !== 'false';
+        const historyLimit = 30; // Fixed limit
 
         // Initialize app
         document.addEventListener('DOMContentLoaded', function() {
@@ -915,8 +916,8 @@ export const html = `
                         bulletUrl: responseData.new_bullet_url || null,
                     };
                     settings.history.unshift(historyItem);
-                    if (settings.history.length > 10) {
-                        settings.history = settings.history.slice(0, 10);
+                    if (settings.history.length > historyLimit) {
+                        settings.history = settings.history.slice(0, historyLimit);
                     }
                     saveSettings();
 
@@ -1019,6 +1020,7 @@ export const html = `
                     <div style="margin-top: 8px; display: flex; gap: 8px;">
                         <button onclick="loadFromHistory('\${item.id}')" style="background: var(--accent-color); color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 12px;">Load</button>
                         \${item.bulletUrl ? \`<a href="\${item.bulletUrl}" target="_blank" rel="noopener" style="background: var(--success-color); color: white; border: none; padding: 4px 8px; border-radius: 4px; text-decoration: none; cursor: pointer; font-size: 12px;">🔗 View</a>\` : ''}
+                        <button onclick="deleteHistoryItem('\${item.id}')" style="background: var(--error-color); color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 12px;">❌ Remove</button>
                     </div>
                 </div>
             \`).join('');
@@ -1040,6 +1042,15 @@ export const html = `
                 updateSubmitButtonState();
                 closeModal('historyModal');
                 showToast('Loaded from history', 'success');
+            }
+        }
+
+        function deleteHistoryItem(id) {
+            if (confirm('Remove from local history? (Workflowy post stays intact)')) {
+                settings.history = settings.history.filter(item => item.id !== id);
+                saveSettings();
+                updateHistoryModal();
+                showToast('Removed from history', 'success');
             }
         }
 
