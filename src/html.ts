@@ -253,7 +253,7 @@ export const html = `
             gap: 16px;
         }
 
-        input[type="text"], input[type="url"] {
+        input[type="text"], input[type="url"], input[type="password"] {
             width: 100%;
             padding: 12px;
             border: 2px solid var(--border-color);
@@ -261,11 +261,38 @@ export const html = `
             background: var(--bg-secondary);
             color: var(--text-primary);
             font-size: 16px;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
         }
 
-        input[type="text"]:focus, input[type="url"]:focus {
+        input[type="text"]:focus, input[type="url"]:focus, input[type="password"]:focus {
             outline: none;
             border-color: var(--accent-color);
+        }
+
+        /* Password input specific styling */
+        input[type="password"] {
+            letter-spacing: 0.1em;
+        }
+        
+        .password-input-wrapper {
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+        
+        .password-toggle {
+            position: absolute;
+            right: 12px;
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            cursor: pointer;
+            font-size: 14px;
+            padding: 4px;
+        }
+        
+        .password-toggle:hover {
+            color: var(--text-primary);
         }
 
         .toast {
@@ -420,6 +447,22 @@ export const html = `
         </div>
 
         <div class="controls-section">
+            <div class="control-row">
+                <div class="input-group" style="flex-grow: 1;">
+                    <label class="input-label">Save Location</label>
+                    <select id="mainLocationSelect">
+                        <option value="">Select save location...</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="control-row">
+                <div class="checkbox-wrapper">
+                    <input type="checkbox" id="mainTimestampCheckbox" checked>
+                    <label for="mainTimestampCheckbox">Add timestamp to note (YYYY-MM-DD HH:MM)</label>
+                </div>
+            </div>
+            
             <div class="button-row">
                 <button id="submitBtn" class="btn btn-primary" disabled>
                     📝 Submit
@@ -444,7 +487,10 @@ export const html = `
                 
                 <div class="input-group">
                     <label class="input-label">Step 1: Workflowy API Key</label>
-                    <input type="text" id="setupApiKeyInput" placeholder="Enter your Workflowy API key">
+                    <div class="password-input-wrapper">
+                        <input type="password" id="setupApiKeyInput" placeholder="Enter your Workflowy API key">
+                        <button type="button" class="password-toggle" onclick="togglePasswordVisibility('setupApiKeyInput', this)">👁️</button>
+                    </div>
                     <button id="setupGetApiKeyBtn" class="btn btn-link">
                         🔑 Get API Key from Workflowy
                     </button>
@@ -485,24 +531,13 @@ export const html = `
             <div class="modal-body">
                 <div class="input-group">
                     <label class="input-label">Workflowy API Key</label>
-                    <input type="text" id="apiKeyInput" placeholder="Enter your Workflowy API key">
+                    <div class="password-input-wrapper">
+                        <input type="password" id="apiKeyInput" placeholder="Enter your Workflowy API key">
+                        <button type="button" class="password-toggle" onclick="togglePasswordVisibility('apiKeyInput', this)">👁️</button>
+                    </div>
                     <button id="getApiKeyBtn" class="btn btn-link">
                         🔑 Get API Key from Workflowy
                     </button>
-                </div>
-                
-                <hr style="border-color: var(--border-color); margin: 20px 0;">
-                
-                <div class="input-group">
-                    <label class="input-label">Save Location</label>
-                    <select id="settingsLocationSelect">
-                        <option value="">Select save location...</option>
-                    </select>
-                </div>
-                
-                <div class="checkbox-wrapper">
-                    <input type="checkbox" id="settingsTimestampCheckbox" checked>
-                    <label for="settingsTimestampCheckbox">Add timestamp to note (YYYY-MM-DD HH:MM)</label>
                 </div>
                 
                 <hr style="border-color: var(--border-color); margin: 20px 0;">
@@ -624,8 +659,8 @@ export const html = `
         // DOM elements
         const textArea = document.getElementById('textArea');
         const noteArea = document.getElementById('noteArea');
-        const settingsLocationSelect = document.getElementById('settingsLocationSelect');
-        const settingsTimestampCheckbox = document.getElementById('settingsTimestampCheckbox');
+        const mainLocationSelect = document.getElementById('mainLocationSelect');
+        const mainTimestampCheckbox = document.getElementById('mainTimestampCheckbox');
         const submitBtn = document.getElementById('submitBtn');
         
         // Settings state
@@ -640,6 +675,7 @@ export const html = `
             
             initializeDefaultLocations();
             loadSettings();
+            updateMainUI();
             updateSaveLocationSelect();
             updateSubmitButtonState();
             bindEventListeners();
@@ -647,6 +683,9 @@ export const html = `
             // Show setup guide if no API key or locations
             if (!settings.apiKey || settings.locations.length === 0) {
                 showSetupGuide();
+            } else {
+                // Auto-focus on text area when ready
+                setTimeout(() => textArea.focus(), 100);
             }
         });
 
@@ -664,8 +703,13 @@ export const html = `
         }
         
         function updateSettingsModal() {
-            // Update location select in settings
-            settingsLocationSelect.innerHTML = '<option value="">Select save location...</option>';
+            // Settings modal no longer has location/timestamp controls
+            // They are now in the main UI
+        }
+        
+        function updateMainUI() {
+            // Update main location select
+            mainLocationSelect.innerHTML = '<option value="">Select save location...</option>';
             settings.locations.forEach((location, index) => {
                 const option = document.createElement('option');
                 option.value = index;
@@ -673,11 +717,11 @@ export const html = `
                 if (index.toString() === currentLocationIndex) {
                     option.selected = true;
                 }
-                settingsLocationSelect.appendChild(option);
+                mainLocationSelect.appendChild(option);
             });
             
-            // Set timestamp checkbox
-            settingsTimestampCheckbox.checked = timestampEnabled;
+            // Set timestamp checkbox in main UI
+            mainTimestampCheckbox.checked = timestampEnabled;
         }
 
         function saveSettings() {
@@ -704,8 +748,34 @@ export const html = `
             // Form validation
             textArea.addEventListener('input', updateSubmitButtonState);
 
+            // Main UI controls
+            mainLocationSelect.addEventListener('change', function() {
+                currentLocationIndex = mainLocationSelect.value;
+                localStorage.setItem('jotflowy_selectedLocation', currentLocationIndex);
+                updateSubmitButtonState();
+                updateSettingsModal(); // Sync with settings modal
+            });
+            
+            mainTimestampCheckbox.addEventListener('change', function() {
+                timestampEnabled = mainTimestampCheckbox.checked;
+                localStorage.setItem('jotflowy_timestampEnabled', timestampEnabled.toString());
+            });
+
             // Submit form
             submitBtn.addEventListener('click', handleSubmit);
+            
+            // Keyboard shortcuts (Command+Enter on Mac, Ctrl+Enter on Windows/Linux)
+            function handleKeyboardShortcut(event) {
+                if (event.key === 'Enter' && (event.metaKey || event.ctrlKey)) {
+                    event.preventDefault();
+                    if (!submitBtn.disabled) {
+                        handleSubmit();
+                    }
+                }
+            }
+            
+            textArea.addEventListener('keydown', handleKeyboardShortcut);
+            noteArea.addEventListener('keydown', handleKeyboardShortcut);
 
             // Mobile keyboard handling
             if (window.innerWidth <= 767) {
@@ -718,13 +788,9 @@ export const html = `
             // Settings
             document.getElementById('saveSettingsBtn').addEventListener('click', function() {
                 settings.apiKey = document.getElementById('apiKeyInput').value.trim();
-                currentLocationIndex = settingsLocationSelect.value;
-                timestampEnabled = settingsTimestampCheckbox.checked;
-                
-                localStorage.setItem('jotflowy_selectedLocation', currentLocationIndex);
-                localStorage.setItem('jotflowy_timestampEnabled', timestampEnabled.toString());
                 
                 saveSettings();
+                updateMainUI(); // Update main UI with new settings
                 updateSubmitButtonState();
                 closeModal('settingsModal');
                 showToast('Settings saved successfully!', 'success');
@@ -780,9 +846,9 @@ export const html = `
 
             const title = textArea.value.trim();
             const note = noteArea.value.trim();
-            const locationIndex = parseInt(currentLocationIndex);
+            const locationIndex = parseInt(mainLocationSelect.value);
             const location = settings.locations[locationIndex];
-            const includeTimestamp = timestampEnabled;
+            const includeTimestamp = mainTimestampCheckbox.checked;
 
             if (!title || !location || !settings.apiKey) {
                 showToast('Please configure settings first', 'error');
@@ -895,6 +961,7 @@ export const html = `
             localStorage.setItem('jotflowy_selectedLocation', currentLocationIndex);
             
             saveSettings();
+            updateMainUI();
             updateSaveLocationSelect();
             updateLocationsModal();
             updateSubmitButtonState();
@@ -1056,11 +1123,15 @@ export const html = `
             localStorage.setItem('jotflowy_timestampEnabled', 'true');
 
             saveSettings();
+            updateMainUI();
             updateSaveLocationSelect();
             updateSubmitButtonState();
 
             closeModal('setupModal');
             showToast('Setup completed! You can now start using Jotflowy.', 'success');
+            
+            // Auto-focus on text area after setup
+            setTimeout(() => textArea.focus(), 200);
         }
 
         function getTodayDateKey() {
@@ -1140,6 +1211,17 @@ export const html = `
                         document.body.classList.remove('keyboard-active');
                     }
                 });
+            }
+        }
+
+        function togglePasswordVisibility(inputId, button) {
+            const input = document.getElementById(inputId);
+            if (input.type === 'password') {
+                input.type = 'text';
+                button.textContent = '🙈';
+            } else {
+                input.type = 'password';
+                button.textContent = '👁️';
             }
         }
 
