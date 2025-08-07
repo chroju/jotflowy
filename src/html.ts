@@ -4,6 +4,7 @@ export const html = `
 <head>
     <title>Jotflowy - Quick Notes to Workflowy</title>
     <meta content="width=device-width,initial-scale=1,shrink-to-fit=no,viewport-fit=cover,interactive-widget=resizes-content" name="viewport">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         :root {
             --bg-primary: #2E3440;
@@ -14,6 +15,8 @@ export const html = `
             --text-muted: #81A1C1;
             --border-color: #4C566A;
             --accent-color: #5E81AC;
+            --heading-color: #88C0D0;
+            --link-color: #88C0D0;
             --success-color: #A3BE8C;
             --error-color: #BF616A;
         }
@@ -155,6 +158,11 @@ export const html = `
             align-items: center;
             justify-content: center;
             gap: 8px;
+        }
+        
+        .btn i {
+            font-size: 14px;
+            opacity: 0.9;
         }
 
         .btn-primary {
@@ -316,8 +324,21 @@ export const html = `
         }
         
         /* Help modal specific styles */
+        #helpModal .modal-content {
+            max-height: 80vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        #helpModal .modal-body {
+            overflow-y: auto;
+            flex: 1;
+            padding-right: 8px;
+        }
+        
         #helpModal .modal-body h3 {
-            color: var(--accent-color);
+            color: var(--heading-color);
             margin-top: 24px;
             margin-bottom: 12px;
             font-size: 16px;
@@ -334,6 +355,25 @@ export const html = `
         
         #helpModal .modal-body li {
             margin-bottom: 8px;
+        }
+        
+        /* Custom scrollbar for help modal */
+        #helpModal .modal-body::-webkit-scrollbar {
+            width: 6px;
+        }
+        
+        #helpModal .modal-body::-webkit-scrollbar-track {
+            background: var(--bg-tertiary);
+            border-radius: 3px;
+        }
+        
+        #helpModal .modal-body::-webkit-scrollbar-thumb {
+            background: var(--border-color);
+            border-radius: 3px;
+        }
+        
+        #helpModal .modal-body::-webkit-scrollbar-thumb:hover {
+            background: var(--text-muted);
         }
 
         .history-list {
@@ -465,10 +505,10 @@ export const html = `
             
             <div class="button-row">
                 <button id="submitBtn" class="btn btn-primary" disabled>
-                    📝 Submit
+                    <i class="fas fa-paper-plane"></i> Submit
                 </button>
                 <button id="settingsBtn" class="btn btn-secondary">
-                    ⚙️ Settings
+                    <i class="fas fa-cog"></i> Settings
                 </button>
             </div>
         </div>
@@ -478,7 +518,7 @@ export const html = `
     <div id="setupModal" class="modal">
         <div class="modal-content">
             <div class="modal-header">
-                <h2 class="modal-title">Welcome to Jotflowy! 🎉</h2>
+                <h2 class="modal-title">Welcome to Jotflowy</h2>
             </div>
             <div class="modal-body">
                 <p style="color: var(--text-secondary); margin-bottom: 20px;">
@@ -489,10 +529,10 @@ export const html = `
                     <label class="input-label">Step 1: Workflowy API Key</label>
                     <div class="password-input-wrapper">
                         <input type="password" id="setupApiKeyInput" placeholder="Enter your Workflowy API key">
-                        <button type="button" class="password-toggle" onclick="togglePasswordVisibility('setupApiKeyInput', this)">👁️</button>
+                        <button type="button" class="password-toggle" onclick="togglePasswordVisibility('setupApiKeyInput', this)"><i class="fas fa-eye"></i></button>
                     </div>
                     <button id="setupGetApiKeyBtn" class="btn btn-link">
-                        🔑 Get API Key from Workflowy
+                        <i class="fas fa-key"></i> Get API Key from Workflowy
                     </button>
                 </div>
 
@@ -505,7 +545,7 @@ export const html = `
                         <label for="setupLocationDaily">Create daily note automatically</label>
                     </div>
                     <div style="font-size: 12px; color: var(--text-muted); margin-top: 8px;">
-                        💡 Tip: Open Workflowy, navigate to where you want to save notes, and copy the URL from your browser.
+                        <i class="fas fa-lightbulb"></i> Tip: Open Workflowy, navigate to where you want to save notes, and copy the URL from your browser.
                     </div>
                 </div>
 
@@ -523,7 +563,7 @@ export const html = `
                 <h2 class="modal-title">Settings</h2>
                 <div style="display: flex; align-items: center; gap: 12px;">
                     <button id="helpBtn" class="btn btn-link" style="font-size: 14px; padding: 4px 8px;">
-                        ❓ Help
+                        <i class="fas fa-question-circle"></i> Help
                     </button>
                     <button class="close" id="settingsClose">×</button>
                 </div>
@@ -533,10 +573,10 @@ export const html = `
                     <label class="input-label">Workflowy API Key</label>
                     <div class="password-input-wrapper">
                         <input type="password" id="apiKeyInput" placeholder="Enter your Workflowy API key">
-                        <button type="button" class="password-toggle" onclick="togglePasswordVisibility('apiKeyInput', this)">👁️</button>
+                        <button type="button" class="password-toggle" onclick="togglePasswordVisibility('apiKeyInput', this)"><i class="fas fa-eye"></i></button>
                     </div>
                     <button id="getApiKeyBtn" class="btn btn-link">
-                        🔑 Get API Key from Workflowy
+                        <i class="fas fa-key"></i> Get API Key from Workflowy
                     </button>
                 </div>
                 
@@ -544,10 +584,10 @@ export const html = `
                 
                 <div class="button-row">
                     <button id="historyBtn" class="btn btn-secondary">
-                        📚 History
+                        <i class="fas fa-history"></i> History
                     </button>
                     <button id="locationsBtn" class="btn btn-secondary">
-                        📍 Locations
+                        <i class="fas fa-map-marker-alt"></i> Locations
                     </button>
                 </div>
                 
@@ -612,30 +652,26 @@ export const html = `
     <div id="helpModal" class="modal">
         <div class="modal-content">
             <div class="modal-header">
-                <h2 class="modal-title">📚 Jotflowy Help</h2>
+                <h2 class="modal-title"><i class="fas fa-question-circle"></i> Jotflowy Help</h2>
                 <button class="close" id="helpClose">×</button>
             </div>
             <div class="modal-body">
-                <h3>🔗 About</h3>
+                <h3>About</h3>
                 <p style="color: var(--text-secondary); line-height: 1.6; margin: 0 0 12px 0;">Jotflowy is a browser-based note-taking app that integrates with Workflowy's official API. Your settings are saved locally in your browser.</p>
                 <p style="color: var(--text-secondary); line-height: 1.6; margin: 0 0 20px 0;">
-                    <strong>Developer:</strong> <a href="https://github.com/chroju/jotflowy" target="_blank" rel="noopener" style="color: var(--accent-color); text-decoration: underline;">https://github.com/chroju/jotflowy</a>
+                    <a href="https://github.com/chroju/jotflowy" target="_blank" rel="noopener" style="color: var(--link-color); text-decoration: none; display: inline-flex; align-items: center; gap: 6px;">
+                        <i class="fab fa-github"></i> Source https://github.com/chroju/jotflowy
+                    </a>
                 </p>
                 
-                <h3>🚀 Getting Started</h3>
+                <h3>Getting Started</h3>
                 <ul style="color: var(--text-secondary); line-height: 1.6;">
                     <li><strong>First time?</strong> Configure your API key and save location in Settings</li>
-                    <li><strong>API Key:</strong> Get it from <a href="https://workflowy.com/api-key" target="_blank" style="color: var(--accent-color);">Workflowy API Settings</a></li>
+                    <li><strong>API Key:</strong> Get it from <a href="https://workflowy.com/api-key" target="_blank" style="color: var(--link-color);">Workflowy API Settings</a></li>
                     <li><strong>Save Location:</strong> Open Workflowy, navigate to your desired bullet, copy the URL</li>
                 </ul>
                 
-                <h3>✏️ Using Jotflowy</h3>
-                <ul style="color: var(--text-secondary); line-height: 1.6;">
-                    <li><strong>Text:</strong> Your main content (required)</li>
-                    <li><strong>Note:</strong> Additional details (optional)</li>
-                </ul>
-                
-                <h3>📋 Features</h3>
+                <h3>Features</h3>
                 <ul style="color: var(--text-secondary); line-height: 1.6;">
                     <li><strong>History:</strong> View past notes and jump to them in Workflowy</li>
                     <li><strong>Multiple Locations:</strong> Save to different Workflowy bullets</li>
@@ -858,7 +894,7 @@ export const html = `
 
             // Disable submit button and show loading state
             submitBtn.disabled = true;
-            submitBtn.textContent = '⏳ Submitting...';
+            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Submitting...';
 
             try {
                 let finalSaveLocationUrl = location.url;
@@ -934,7 +970,7 @@ export const html = `
                 // Keep the text in the form when error occurs (text is NOT cleared)
             } finally {
                 // Reset submit button
-                submitBtn.textContent = '📝 Submit';
+                submitBtn.innerHTML = '<i class="fas fa-paper-plane"></i> Submit';
                 updateSubmitButtonState();
             }
         }
@@ -997,7 +1033,7 @@ export const html = `
                     <div>
                         <div style="font-weight: 500; color: var(--text-primary);">\${location.name}</div>
                         <div style="font-size: 12px; color: var(--text-muted);">\${location.url}</div>
-                        \${location.createDaily ? '<div style="font-size: 11px; color: var(--accent-color);">📅 Daily note enabled</div>' : ''}
+                        \${location.createDaily ? '<div style="font-size: 11px; color: var(--success-color); font-weight: 500;"><i class="fas fa-calendar-alt"></i> Daily note enabled</div>' : ''}
                     </div>
                     <button onclick="removeLocation(\${index})" style="background: var(--error-color); color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer;">Remove</button>
                 </div>
@@ -1019,8 +1055,8 @@ export const html = `
                     </div>
                     <div style="margin-top: 8px; display: flex; gap: 8px;">
                         <button onclick="loadFromHistory('\${item.id}')" style="background: var(--accent-color); color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 12px;">Load</button>
-                        \${item.bulletUrl ? \`<a href="\${item.bulletUrl}" target="_blank" rel="noopener" style="background: var(--success-color); color: white; border: none; padding: 4px 8px; border-radius: 4px; text-decoration: none; cursor: pointer; font-size: 12px;">🔗 View</a>\` : ''}
-                        <button onclick="deleteHistoryItem('\${item.id}')" style="background: var(--error-color); color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 12px;">❌ Remove</button>
+                        \${item.bulletUrl ? \`<a href="\${item.bulletUrl}" target="_blank" rel="noopener" style="background: var(--success-color); color: white; border: none; padding: 4px 8px; border-radius: 4px; text-decoration: none; cursor: pointer; font-size: 12px;"><i class="fas fa-external-link-alt"></i> View</a>\` : ''}
+                        <button onclick="deleteHistoryItem('\${item.id}')" style="background: var(--error-color); color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 12px;"><i class="fas fa-trash-alt"></i> Remove</button>
                     </div>
                 </div>
             \`).join('');
@@ -1227,12 +1263,13 @@ export const html = `
 
         function togglePasswordVisibility(inputId, button) {
             const input = document.getElementById(inputId);
+            const icon = button.querySelector('i');
             if (input.type === 'password') {
                 input.type = 'text';
-                button.textContent = '🙈';
+                icon.className = 'fas fa-eye-slash';
             } else {
                 input.type = 'password';
-                button.textContent = '👁️';
+                icon.className = 'fas fa-eye';
             }
         }
 
