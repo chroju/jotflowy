@@ -684,13 +684,103 @@ export const html = `
     </div>
 
     <script>
-        // Global state
+        // Safe localStorage utilities
+        function safeGetItem(key, defaultValue = null) {
+            try {
+                const item = localStorage.getItem(key);
+                return item !== null ? item : defaultValue;
+            } catch (error) {
+                console.warn('Failed to read from localStorage (key: ' + key + '):', error);
+                return defaultValue;
+            }
+        }
+
+        function safeParseJSON(jsonString, defaultValue = null) {
+            if (!jsonString) return defaultValue;
+            try {
+                return JSON.parse(jsonString);
+            } catch (error) {
+                console.warn('Failed to parse JSON:', error);
+                return defaultValue;
+            }
+        }
+
+        function safeSetItem(key, value) {
+            try {
+                localStorage.setItem(key, value);
+                return true;
+            } catch (error) {
+                console.error('Failed to write to localStorage (key: ' + key + '):', error);
+                if (error.name === 'QuotaExceededError') {
+                    showToast('Storage quota exceeded. Please clear browser data.', 'error');
+                } else {
+                    showToast('Failed to save settings. Check browser storage permissions.', 'error');
+                }
+                return false;
+            }
+        }
+
+        // Initialize settings with safe defaults
         let settings = {
-            apiKey: localStorage.getItem('jotflowy_apiKey') || '',
-            locations: JSON.parse(localStorage.getItem('jotflowy_locations') || '[]'),
-            history: JSON.parse(localStorage.getItem('jotflowy_history') || '[]'),
-            dailyNoteCache: JSON.parse(localStorage.getItem('jotflowy_dailyNoteCache') || '{}')
+            apiKey: safeGetItem('jotflowy_apiKey', ''),
+            locations: safeParseJSON(safeGetItem('jotflowy_locations'), []),
+            history: safeParseJSON(safeGetItem('jotflowy_history'), []),
+            dailyNoteCache: safeParseJSON(safeGetItem('jotflowy_dailyNoteCache'), {})
         };
+
+        // Settings validation and recovery
+        function validateAndRecoverSettings() {
+            let settingsChanged = false;
+            
+            // Validate locations array
+            if (!Array.isArray(settings.locations)) {
+                console.warn('Invalid locations array detected, resetting to empty array');
+                settings.locations = [];
+                settingsChanged = true;
+            } else {
+                // Validate each location object
+                const originalLength = settings.locations.length;
+                settings.locations = settings.locations.filter(location => {
+                    return location && 
+                           typeof location.name === 'string' && 
+                           typeof location.url === 'string' &&
+                           location.url.includes('workflowy.com');
+                });
+                if (settings.locations.length !== originalLength) {
+                    settingsChanged = true;
+                }
+            }
+            
+            // Validate history array
+            if (!Array.isArray(settings.history)) {
+                console.warn('Invalid history array detected, resetting to empty array');
+                settings.history = [];
+                settingsChanged = true;
+            }
+            
+            // Validate daily note cache
+            if (typeof settings.dailyNoteCache !== 'object' || settings.dailyNoteCache === null) {
+                console.warn('Invalid daily note cache detected, resetting to empty object');
+                settings.dailyNoteCache = {};
+                settingsChanged = true;
+            }
+            
+            // Validate API key
+            if (typeof settings.apiKey !== 'string') {
+                console.warn('Invalid API key detected, resetting to empty string');
+                settings.apiKey = '';
+                settingsChanged = true;
+            }
+            
+            if (settingsChanged) {
+                console.log('Settings were corrupted and have been automatically repaired');
+                saveSettings();
+                // Use setTimeout to avoid showing toast during initial load
+                setTimeout(() => {
+                    showToast('Settings were automatically repaired due to corruption', 'success');
+                }, 1000);
+            }
+        }
 
         // DOM elements
         const textArea = document.getElementById('textArea');
@@ -699,16 +789,19 @@ export const html = `
         const mainTimestampCheckbox = document.getElementById('mainTimestampCheckbox');
         const submitBtn = document.getElementById('submitBtn');
         
-        // Settings state
-        let currentLocationIndex = localStorage.getItem('jotflowy_selectedLocation') || '';
-        let timestampEnabled = localStorage.getItem('jotflowy_timestampEnabled') !== 'false';
+        // Settings state with safe localStorage access
+        let currentLocationIndex = safeGetItem('jotflowy_selectedLocation', '');
+        let timestampEnabled = safeGetItem('jotflowy_timestampEnabled', 'true') !== 'false';
         const historyLimit = 30; // Fixed limit
 
         // Initialize app
         document.addEventListener('DOMContentLoaded', function() {
+            // Validate and recover settings before doing anything else
+            validateAndRecoverSettings();
+            
             // Load saved location preference
-            currentLocationIndex = localStorage.getItem('jotflowy_selectedLocation') || '';
-            timestampEnabled = localStorage.getItem('jotflowy_timestampEnabled') !== 'false';
+            currentLocationIndex = safeGetItem('jotflowy_selectedLocation', '');
+            timestampEnabled = safeGetItem('jotflowy_timestampEnabled', 'true') !== 'false';
             
             initializeDefaultLocations();
             loadSettings();
@@ -762,10 +855,18 @@ export const html = `
         }
 
         function saveSettings() {
-            localStorage.setItem('jotflowy_apiKey', settings.apiKey);
-            localStorage.setItem('jotflowy_locations', JSON.stringify(settings.locations));
-            localStorage.setItem('jotflowy_history', JSON.stringify(settings.history));
-            localStorage.setItem('jotflowy_dailyNoteCache', JSON.stringify(settings.dailyNoteCache));
+            const success = [
+                safeSetItem('jotflowy_apiKey', settings.apiKey),
+                safeSetItem('jotflowy_locations', JSON.stringify(settings.locations)),
+                safeSetItem('jotflowy_history', JSON.stringify(settings.history)),
+                safeSetItem('jotflowy_dailyNoteCache', JSON.stringify(settings.dailyNoteCache))
+            ].every(Boolean);
+            
+            if (!success) {
+                console.error('Failed to save some settings to localStorage');
+            }
+            
+            return success;
         }
 
         function updateSaveLocationSelect() {
@@ -788,14 +889,14 @@ export const html = `
             // Main UI controls
             mainLocationSelect.addEventListener('change', function() {
                 currentLocationIndex = mainLocationSelect.value;
-                localStorage.setItem('jotflowy_selectedLocation', currentLocationIndex);
+                safeSetItem('jotflowy_selectedLocation', currentLocationIndex);
                 updateSubmitButtonState();
                 updateSettingsModal(); // Sync with settings modal
             });
             
             mainTimestampCheckbox.addEventListener('change', function() {
                 timestampEnabled = mainTimestampCheckbox.checked;
-                localStorage.setItem('jotflowy_timestampEnabled', timestampEnabled.toString());
+                safeSetItem('jotflowy_timestampEnabled', timestampEnabled.toString());
             });
 
             // Submit form
@@ -914,6 +1015,10 @@ export const html = `
                     }
                 }
 
+                // Create abort controller for timeout
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+
                 const response = await fetch('/send', {
                     method: 'POST',
                     headers: {
@@ -929,7 +1034,10 @@ export const html = `
                         apiKey: settings.apiKey,
                         dailyNoteCache: settings.dailyNoteCache,
                     }),
+                    signal: controller.signal
                 });
+
+                clearTimeout(timeoutId);
 
                 if (response.ok) {
                     const responseData = await response.json();
@@ -962,11 +1070,56 @@ export const html = `
                     noteArea.value = '';
                 } else {
                     const errorData = await response.json().catch(() => ({}));
-                    throw new Error(errorData.error || 'Failed to save note');
+                    
+                    // Provide specific error messages based on status code and content
+                    let errorMessage = 'Failed to save note';
+                    if (response.status === 400) {
+                        errorMessage = 'Invalid request data. Please check your input.';
+                    } else if (response.status === 401) {
+                        errorMessage = 'Please check your API key in Settings';
+                    } else if (response.status === 403) {
+                        errorMessage = 'Access denied. Please check your API key permissions';
+                    } else if (response.status === 404) {
+                        errorMessage = 'Save location not found. Please check the Workflowy URL';
+                    } else if (response.status === 422) {
+                        // WorkflowyAPIError from server
+                        if (errorData.error) {
+                            if (errorData.error.includes('401') || errorData.error.includes('Unauthorized')) {
+                                errorMessage = 'Please check your API key in Settings';
+                            } else if (errorData.error.includes('403') || errorData.error.includes('Forbidden')) {
+                                errorMessage = 'Access denied. Please check your API key permissions';
+                            } else if (errorData.error.includes('404') || errorData.error.includes('Not Found')) {
+                                errorMessage = 'Save location not found. Please check the Workflowy URL';
+                            } else if (errorData.error.includes('429') || errorData.error.includes('rate limit')) {
+                                errorMessage = 'Workflowy API limit reached. Try again in a few minutes';
+                            } else {
+                                errorMessage = errorData.error;
+                            }
+                        }
+                    } else if (response.status === 429) {
+                        errorMessage = 'Workflowy API limit reached. Try again in a few minutes';
+                    } else if (response.status >= 500) {
+                        errorMessage = 'Workflowy server error. Please try again later';
+                    } else if (errorData.error) {
+                        errorMessage = errorData.error;
+                    }
+                    
+                    throw new Error(errorMessage);
                 }
             } catch (error) {
                 console.error('Submit error:', error);
-                showToast(error.message || 'Failed to save note', 'error');
+                
+                // Provide specific error messages for different error types
+                let errorMessage = 'Failed to save note';
+                if (error.name === 'TypeError' && error.message.includes('fetch')) {
+                    errorMessage = 'Connection failed. Check internet and try again';
+                } else if (error.name === 'AbortError') {
+                    errorMessage = 'Request timed out. Please try again';
+                } else if (error.message) {
+                    errorMessage = error.message;
+                }
+                
+                showToast(errorMessage, 'error');
                 // Keep the text in the form when error occurs (text is NOT cleared)
             } finally {
                 // Reset submit button
@@ -995,7 +1148,7 @@ export const html = `
             
             // Auto-select the new location
             currentLocationIndex = newLocationIndex.toString();
-            localStorage.setItem('jotflowy_selectedLocation', currentLocationIndex);
+            safeSetItem('jotflowy_selectedLocation', currentLocationIndex);
             
             saveSettings();
             updateMainUI();
@@ -1072,7 +1225,7 @@ export const html = `
                 const locationIndex = settings.locations.findIndex(l => l.name === item.location);
                 if (locationIndex >= 0) {
                     currentLocationIndex = locationIndex.toString();
-                    localStorage.setItem('jotflowy_selectedLocation', currentLocationIndex);
+                    safeSetItem('jotflowy_selectedLocation', currentLocationIndex);
                 }
                 
                 updateSubmitButtonState();
@@ -1165,9 +1318,9 @@ export const html = `
             
             // Auto-select the initial location
             currentLocationIndex = '0';
-            localStorage.setItem('jotflowy_selectedLocation', currentLocationIndex);
+            safeSetItem('jotflowy_selectedLocation', currentLocationIndex);
             timestampEnabled = true;
-            localStorage.setItem('jotflowy_timestampEnabled', 'true');
+            safeSetItem('jotflowy_timestampEnabled', 'true');
 
             saveSettings();
             updateMainUI();
