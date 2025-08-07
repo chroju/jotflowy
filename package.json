@@ -7,7 +7,10 @@
   "scripts": {
     "dev": "wrangler dev",
     "deploy": "wrangler deploy",
-    "start": "wrangler dev"
+    "start": "wrangler dev",
+    "test": "vitest",
+    "test:run": "vitest run",
+    "test:ui": "vitest --ui"
   },
   "keywords": [
     "workflowy",
@@ -19,7 +22,10 @@
   "license": "MIT",
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20250806.0",
+    "@vitest/ui": "^3.2.4",
+    "jsdom": "^26.1.0",
     "typescript": "^5.9.2",
+    "vitest": "^3.2.4",
     "wrangler": "^4.28.0"
   },
   "dependencies": {
