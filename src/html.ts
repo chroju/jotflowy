@@ -15,6 +15,8 @@ export const html = `
             --text-muted: #81A1C1;
             --border-color: #4C566A;
             --accent-color: #5E81AC;
+            --heading-color: #88C0D0;
+            --link-color: #88C0D0;
             --success-color: #A3BE8C;
             --error-color: #BF616A;
         }
@@ -322,8 +324,21 @@ export const html = `
         }
         
         /* Help modal specific styles */
+        #helpModal .modal-content {
+            max-height: 80vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        #helpModal .modal-body {
+            overflow-y: auto;
+            flex: 1;
+            padding-right: 8px;
+        }
+        
         #helpModal .modal-body h3 {
-            color: var(--accent-color);
+            color: var(--heading-color);
             margin-top: 24px;
             margin-bottom: 12px;
             font-size: 16px;
@@ -340,6 +355,25 @@ export const html = `
         
         #helpModal .modal-body li {
             margin-bottom: 8px;
+        }
+        
+        /* Custom scrollbar for help modal */
+        #helpModal .modal-body::-webkit-scrollbar {
+            width: 6px;
+        }
+        
+        #helpModal .modal-body::-webkit-scrollbar-track {
+            background: var(--bg-tertiary);
+            border-radius: 3px;
+        }
+        
+        #helpModal .modal-body::-webkit-scrollbar-thumb {
+            background: var(--border-color);
+            border-radius: 3px;
+        }
+        
+        #helpModal .modal-body::-webkit-scrollbar-thumb:hover {
+            background: var(--text-muted);
         }
 
         .history-list {
@@ -625,20 +659,16 @@ export const html = `
                 <h3>About</h3>
                 <p style="color: var(--text-secondary); line-height: 1.6; margin: 0 0 12px 0;">Jotflowy is a browser-based note-taking app that integrates with Workflowy's official API. Your settings are saved locally in your browser.</p>
                 <p style="color: var(--text-secondary); line-height: 1.6; margin: 0 0 20px 0;">
-                    <strong>Developer:</strong> <a href="https://github.com/chroju/jotflowy" target="_blank" rel="noopener" style="color: var(--accent-color); text-decoration: underline;">https://github.com/chroju/jotflowy</a>
+                    <a href="https://github.com/chroju/jotflowy" target="_blank" rel="noopener" style="color: var(--link-color); text-decoration: none; display: inline-flex; align-items: center; gap: 6px;">
+                        <i class="fab fa-github"></i> Source https://github.com/chroju/jotflowy
+                    </a>
                 </p>
                 
                 <h3>Getting Started</h3>
                 <ul style="color: var(--text-secondary); line-height: 1.6;">
                     <li><strong>First time?</strong> Configure your API key and save location in Settings</li>
-                    <li><strong>API Key:</strong> Get it from <a href="https://workflowy.com/api-key" target="_blank" style="color: var(--accent-color);">Workflowy API Settings</a></li>
+                    <li><strong>API Key:</strong> Get it from <a href="https://workflowy.com/api-key" target="_blank" style="color: var(--link-color);">Workflowy API Settings</a></li>
                     <li><strong>Save Location:</strong> Open Workflowy, navigate to your desired bullet, copy the URL</li>
-                </ul>
-                
-                <h3>Using Jotflowy</h3>
-                <ul style="color: var(--text-secondary); line-height: 1.6;">
-                    <li><strong>Text:</strong> Your main content (required)</li>
-                    <li><strong>Note:</strong> Additional details (optional)</li>
                 </ul>
                 
                 <h3>Features</h3>
@@ -1003,7 +1033,7 @@ export const html = `
                     <div>
                         <div style="font-weight: 500; color: var(--text-primary);">\${location.name}</div>
                         <div style="font-size: 12px; color: var(--text-muted);">\${location.url}</div>
-                        \${location.createDaily ? '<div style="font-size: 11px; color: var(--accent-color);"><i class="fas fa-calendar-alt"></i> Daily note enabled</div>' : ''}
+                        \${location.createDaily ? '<div style="font-size: 11px; color: var(--success-color); font-weight: 500;"><i class="fas fa-calendar-alt"></i> Daily note enabled</div>' : ''}
                     </div>
                     <button onclick="removeLocation(\${index})" style="background: var(--error-color); color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer;">Remove</button>
                 </div>
