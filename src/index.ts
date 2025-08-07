@@ -74,7 +74,8 @@ async function handleSend(request: Request, ctx: ExecutionContext, corsHeaders: 
 
     return new Response(JSON.stringify({
       message: 'Request accepted',
-      dailyNoteUrl: result.dailyNoteUrl
+      dailyNoteUrl: result.dailyNoteUrl,
+      new_bullet_url: result.new_bullet_url
     }), { 
       status: 200, 
       headers: {
@@ -111,7 +112,7 @@ async function handleSend(request: Request, ctx: ExecutionContext, corsHeaders: 
   }
 }
 
-async function processNoteCreation(data: z.infer<typeof requestSchema>): Promise<{ dailyNoteUrl?: string }> {
+async function processNoteCreation(data: z.infer<typeof requestSchema>): Promise<{ dailyNoteUrl?: string; new_bullet_url?: string }> {
   try {
     let title = data.title;
     let saveLocationUrl = data.saveLocationUrl;
@@ -128,8 +129,7 @@ async function processNoteCreation(data: z.infer<typeof requestSchema>): Promise
       }
     }
 
-    // Add inbox tag
-    title = `${title} #inbox`;
+    // No longer adding #inbox tag as requested
 
     // Build note content with optional timestamp
     const noteContent = buildNoteWithTimestamp(data.note, data.includeTimestamp);
@@ -173,7 +173,10 @@ async function processNoteCreation(data: z.infer<typeof requestSchema>): Promise
       title: result.new_bullet_title,
     });
 
-    return { dailyNoteUrl };
+    return { 
+      dailyNoteUrl,
+      new_bullet_url: result.new_bullet_url 
+    };
   } catch (error) {
     console.error('Error processing note creation:', error);
     

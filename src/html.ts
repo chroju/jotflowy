@@ -77,8 +77,8 @@ export const html = `
             border-color: var(--accent-color);
         }
 
-        #titleArea {
-            height: 80px;
+        #textArea {
+            height: 120px;
         }
 
         #noteArea {
@@ -278,6 +278,27 @@ export const html = `
         .toast.error {
             background: var(--error-color);
         }
+        
+        /* Help modal specific styles */
+        #helpModal .modal-body h3 {
+            color: var(--accent-color);
+            margin-top: 24px;
+            margin-bottom: 12px;
+            font-size: 16px;
+        }
+        
+        #helpModal .modal-body h3:first-child {
+            margin-top: 0;
+        }
+        
+        #helpModal .modal-body ul {
+            margin: 0 0 16px 0;
+            padding-left: 20px;
+        }
+        
+        #helpModal .modal-body li {
+            margin-bottom: 8px;
+        }
 
         .history-list {
             max-height: 300px;
@@ -320,8 +341,8 @@ export const html = `
                 padding: 40px 20px;
             }
 
-            #titleArea {
-                height: 100px;
+            #textArea {
+                height: 160px;
             }
 
             #noteArea {
@@ -339,8 +360,8 @@ export const html = `
     <div class="container">
         <div class="form-section">
             <div class="input-group">
-                <label class="input-label" for="titleArea">Title</label>
-                <textarea id="titleArea" placeholder="Enter your note title or main content..."></textarea>
+                <label class="input-label" for="textArea">Text</label>
+                <textarea id="textArea" placeholder="Enter your main content here..."></textarea>
             </div>
 
             <div class="input-group">
@@ -350,32 +371,12 @@ export const html = `
         </div>
 
         <div class="controls-section">
-            <div class="control-row">
-                <select id="saveLocationSelect">
-                    <option value="">Select save location...</option>
-                </select>
-            </div>
-
-            <div class="checkbox-wrapper">
-                <input type="checkbox" id="timestampCheckbox" checked>
-                <label for="timestampCheckbox">Add timestamp to note (YYYY-MM-DD HH:MM)</label>
-            </div>
-
             <div class="button-row">
                 <button id="submitBtn" class="btn btn-primary" disabled>
                     📝 Submit
                 </button>
                 <button id="settingsBtn" class="btn btn-secondary">
                     ⚙️ Settings
-                </button>
-            </div>
-
-            <div class="button-row">
-                <button id="historyBtn" class="btn btn-secondary">
-                    📚 History
-                </button>
-                <button id="locationsBtn" class="btn btn-secondary">
-                    📍 Locations
                 </button>
             </div>
         </div>
@@ -425,7 +426,12 @@ export const html = `
         <div class="modal-content">
             <div class="modal-header">
                 <h2 class="modal-title">Settings</h2>
-                <button class="close" id="settingsClose">×</button>
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <button id="helpBtn" class="btn btn-link" style="font-size: 14px; padding: 4px 8px;">
+                        ❓ Help
+                    </button>
+                    <button class="close" id="settingsClose">×</button>
+                </div>
             </div>
             <div class="modal-body">
                 <div class="input-group">
@@ -435,6 +441,32 @@ export const html = `
                         🔑 Get API Key from Workflowy
                     </button>
                 </div>
+                
+                <hr style="border-color: var(--border-color); margin: 20px 0;">
+                
+                <div class="input-group">
+                    <label class="input-label">Save Location</label>
+                    <select id="settingsLocationSelect">
+                        <option value="">Select save location...</option>
+                    </select>
+                </div>
+                
+                <div class="checkbox-wrapper">
+                    <input type="checkbox" id="settingsTimestampCheckbox" checked>
+                    <label for="settingsTimestampCheckbox">Add timestamp to note (YYYY-MM-DD HH:MM)</label>
+                </div>
+                
+                <hr style="border-color: var(--border-color); margin: 20px 0;">
+                
+                <div class="button-row">
+                    <button id="historyBtn" class="btn btn-secondary">
+                        📚 History
+                    </button>
+                    <button id="locationsBtn" class="btn btn-secondary">
+                        📍 Locations
+                    </button>
+                </div>
+                
                 <div class="button-row">
                     <button id="saveSettingsBtn" class="btn btn-primary">Save Settings</button>
                 </div>
@@ -491,6 +523,45 @@ export const html = `
             </div>
         </div>
     </div>
+    
+    <!-- Help Modal -->
+    <div id="helpModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">📚 Jotflowy Help</h2>
+                <button class="close" id="helpClose">×</button>
+            </div>
+            <div class="modal-body">
+                <h3>🔗 About</h3>
+                <p style="color: var(--text-secondary); line-height: 1.6; margin: 0 0 12px 0;">Jotflowy is a browser-based note-taking app that integrates with Workflowy's official API. Your settings are saved locally in your browser.</p>
+                <p style="color: var(--text-secondary); line-height: 1.6; margin: 0 0 20px 0;">
+                    <strong>Developer:</strong> <a href="https://github.com/chroju/jotflowy" target="_blank" rel="noopener" style="color: var(--accent-color); text-decoration: underline;">https://github.com/chroju/jotflowy</a>
+                </p>
+                
+                <h3>🚀 Getting Started</h3>
+                <ul style="color: var(--text-secondary); line-height: 1.6;">
+                    <li><strong>First time?</strong> Configure your API key and save location in Settings</li>
+                    <li><strong>API Key:</strong> Get it from <a href="https://workflowy.com/api-key" target="_blank" style="color: var(--accent-color);">Workflowy API Settings</a></li>
+                    <li><strong>Save Location:</strong> Open Workflowy, navigate to your desired bullet, copy the URL</li>
+                </ul>
+                
+                <h3>✏️ Using Jotflowy</h3>
+                <ul style="color: var(--text-secondary); line-height: 1.6;">
+                    <li><strong>Text:</strong> Your main content (required)</li>
+                    <li><strong>Note:</strong> Additional details (optional)</li>
+                </ul>
+                
+                <h3>📋 Features</h3>
+                <ul style="color: var(--text-secondary); line-height: 1.6;">
+                    <li><strong>History:</strong> View past notes and jump to them in Workflowy</li>
+                    <li><strong>Multiple Locations:</strong> Save to different Workflowy bullets</li>
+                    <li><strong>Timestamp:</strong> Automatically adds YYYY-MM-DD HH:MM to your note</li>
+                    <li><strong>Daily Notes:</strong> Automatically creates/reuses daily note bullets (YYYY-MM-DD format)</li>
+                </ul>
+                
+            </div>
+        </div>
+    </div>
 
     <script>
         // Global state
@@ -502,14 +573,22 @@ export const html = `
         };
 
         // DOM elements
-        const titleArea = document.getElementById('titleArea');
+        const textArea = document.getElementById('textArea');
         const noteArea = document.getElementById('noteArea');
-        const saveLocationSelect = document.getElementById('saveLocationSelect');
-        const timestampCheckbox = document.getElementById('timestampCheckbox');
+        const settingsLocationSelect = document.getElementById('settingsLocationSelect');
+        const settingsTimestampCheckbox = document.getElementById('settingsTimestampCheckbox');
         const submitBtn = document.getElementById('submitBtn');
+        
+        // Settings state
+        let currentLocationIndex = localStorage.getItem('jotflowy_selectedLocation') || '';
+        let timestampEnabled = localStorage.getItem('jotflowy_timestampEnabled') !== 'false';
 
         // Initialize app
         document.addEventListener('DOMContentLoaded', function() {
+            // Load saved location preference
+            currentLocationIndex = localStorage.getItem('jotflowy_selectedLocation') || '';
+            timestampEnabled = localStorage.getItem('jotflowy_timestampEnabled') !== 'false';
+            
             initializeDefaultLocations();
             loadSettings();
             updateSaveLocationSelect();
@@ -532,6 +611,24 @@ export const html = `
 
         function loadSettings() {
             document.getElementById('apiKeyInput').value = settings.apiKey;
+            updateSettingsModal();
+        }
+        
+        function updateSettingsModal() {
+            // Update location select in settings
+            settingsLocationSelect.innerHTML = '<option value="">Select save location...</option>';
+            settings.locations.forEach((location, index) => {
+                const option = document.createElement('option');
+                option.value = index;
+                option.textContent = location.name;
+                if (index.toString() === currentLocationIndex) {
+                    option.selected = true;
+                }
+                settingsLocationSelect.appendChild(option);
+            });
+            
+            // Set timestamp checkbox
+            settingsTimestampCheckbox.checked = timestampEnabled;
         }
 
         function saveSettings() {
@@ -542,27 +639,21 @@ export const html = `
         }
 
         function updateSaveLocationSelect() {
-            saveLocationSelect.innerHTML = '<option value="">Select save location...</option>';
-            settings.locations.forEach((location, index) => {
-                const option = document.createElement('option');
-                option.value = index;
-                option.textContent = location.name;
-                saveLocationSelect.appendChild(option);
-            });
+            // This function is no longer needed as we use settings modal
+            updateSettingsModal();
         }
 
         function updateSubmitButtonState() {
-            const hasTitle = titleArea.value.trim().length > 0;
-            const hasLocation = saveLocationSelect.value !== '';
+            const hasText = textArea.value.trim().length > 0;
+            const hasLocation = currentLocationIndex !== '' && settings.locations.length > 0;
             const hasApiKey = settings.apiKey.length > 0;
             
-            submitBtn.disabled = !(hasTitle && hasLocation && hasApiKey);
+            submitBtn.disabled = !(hasText && hasLocation && hasApiKey);
         }
 
         function bindEventListeners() {
             // Form validation
-            titleArea.addEventListener('input', updateSubmitButtonState);
-            saveLocationSelect.addEventListener('change', updateSubmitButtonState);
+            textArea.addEventListener('input', updateSubmitButtonState);
 
             // Submit form
             submitBtn.addEventListener('click', handleSubmit);
@@ -573,6 +664,12 @@ export const html = `
             // Settings
             document.getElementById('saveSettingsBtn').addEventListener('click', function() {
                 settings.apiKey = document.getElementById('apiKeyInput').value.trim();
+                currentLocationIndex = settingsLocationSelect.value;
+                timestampEnabled = settingsTimestampCheckbox.checked;
+                
+                localStorage.setItem('jotflowy_selectedLocation', currentLocationIndex);
+                localStorage.setItem('jotflowy_timestampEnabled', timestampEnabled.toString());
+                
                 saveSettings();
                 updateSubmitButtonState();
                 closeModal('settingsModal');
@@ -597,6 +694,10 @@ export const html = `
             // Settings modal
             document.getElementById('settingsBtn').addEventListener('click', () => openModal('settingsModal'));
             document.getElementById('settingsClose').addEventListener('click', () => closeModal('settingsModal'));
+
+            // Help modal
+            document.getElementById('helpBtn').addEventListener('click', () => openModal('helpModal'));
+            document.getElementById('helpClose').addEventListener('click', () => closeModal('helpModal'));
 
             // Locations modal
             document.getElementById('locationsBtn').addEventListener('click', () => {
@@ -623,14 +724,14 @@ export const html = `
         async function handleSubmit() {
             if (submitBtn.disabled) return;
 
-            const title = titleArea.value.trim();
+            const title = textArea.value.trim();
             const note = noteArea.value.trim();
-            const locationIndex = parseInt(saveLocationSelect.value);
+            const locationIndex = parseInt(currentLocationIndex);
             const location = settings.locations[locationIndex];
-            const includeTimestamp = timestampCheckbox.checked;
+            const includeTimestamp = timestampEnabled;
 
             if (!title || !location || !settings.apiKey) {
-                showToast('Please fill in all required fields', 'error');
+                showToast('Please configure settings first', 'error');
                 return;
             }
 
@@ -684,13 +785,14 @@ export const html = `
                         console.log('Cached new daily note URL:', responseData.dailyNoteUrl);
                     }
                     
-                    // Add to history
+                    // Add to history with bullet URL
                     const historyItem = {
                         id: Date.now().toString(),
                         title,
                         note,
                         location: location.name,
                         timestamp: new Date().toISOString(),
+                        bulletUrl: responseData.new_bullet_url || null,
                     };
                     settings.history.unshift(historyItem);
                     if (settings.history.length > 10) {
@@ -699,7 +801,7 @@ export const html = `
                     saveSettings();
 
                     // Clear form
-                    titleArea.value = '';
+                    textArea.value = '';
                     noteArea.value = '';
                 } else {
                     const errorData = await response.json().catch(() => ({}));
@@ -730,17 +832,24 @@ export const html = `
                 return;
             }
 
+            const newLocationIndex = settings.locations.length;
             settings.locations.push({ name, url, createDaily });
+            
+            // Auto-select the new location
+            currentLocationIndex = newLocationIndex.toString();
+            localStorage.setItem('jotflowy_selectedLocation', currentLocationIndex);
+            
             saveSettings();
             updateSaveLocationSelect();
             updateLocationsModal();
+            updateSubmitButtonState();
             
             // Clear form
             document.getElementById('newLocationName').value = '';
             document.getElementById('newLocationUrl').value = '';
             document.getElementById('newLocationDaily').checked = false;
 
-            showToast('Location added successfully!', 'success');
+            showToast('Location added and selected!', 'success');
         }
 
         function removeLocation(index) {
@@ -780,10 +889,14 @@ export const html = `
             }
 
             container.innerHTML = settings.history.map(item => \`
-                <div class="history-item" onclick="loadFromHistory('\${item.id}')">
+                <div class="history-item">
                     <div class="history-item-title">\${item.title}</div>
                     <div class="history-item-meta">
                         \${item.location} • \${new Date(item.timestamp).toLocaleString('ja-JP')}
+                    </div>
+                    <div style="margin-top: 8px; display: flex; gap: 8px;">
+                        <button onclick="loadFromHistory('\${item.id}')" style="background: var(--accent-color); color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 12px;">Load</button>
+                        \${item.bulletUrl ? \`<a href="\${item.bulletUrl}" target="_blank" rel="noopener" style="background: var(--success-color); color: white; border: none; padding: 4px 8px; border-radius: 4px; text-decoration: none; cursor: pointer; font-size: 12px;">🔗 View</a>\` : ''}
                     </div>
                 </div>
             \`).join('');
@@ -792,13 +905,14 @@ export const html = `
         function loadFromHistory(id) {
             const item = settings.history.find(h => h.id === id);
             if (item) {
-                titleArea.value = item.title;
+                textArea.value = item.title;
                 noteArea.value = item.note || '';
                 
                 // Find matching location
                 const locationIndex = settings.locations.findIndex(l => l.name === item.location);
                 if (locationIndex >= 0) {
-                    saveLocationSelect.value = locationIndex;
+                    currentLocationIndex = locationIndex.toString();
+                    localStorage.setItem('jotflowy_selectedLocation', currentLocationIndex);
                 }
                 
                 updateSubmitButtonState();
@@ -879,6 +993,12 @@ export const html = `
                 url: locationUrl,
                 createDaily: createDaily
             }];
+            
+            // Auto-select the initial location
+            currentLocationIndex = '0';
+            localStorage.setItem('jotflowy_selectedLocation', currentLocationIndex);
+            timestampEnabled = true;
+            localStorage.setItem('jotflowy_timestampEnabled', 'true');
 
             saveSettings();
             updateSaveLocationSelect();
@@ -928,6 +1048,8 @@ export const html = `
                 toast.remove();
             }, 3000);
         }
+        
+        // showSuccessLink function removed - using history links only
     </script>
 </body>
 </html>

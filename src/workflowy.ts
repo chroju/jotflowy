@@ -66,12 +66,7 @@ export async function createBullet(request: CreateBulletRequest): Promise<Create
 
 export async function createDailyNote(apiKey: string, journalRootUrl: string): Promise<CreateBulletResponse> {
   const today = new Date();
-  const dateString = today.toLocaleDateString('ja-JP', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-    weekday: 'long'
-  });
+  const dateString = today.toISOString().split('T')[0]; // YYYY-MM-DD format
 
   return createBullet({
     apiKey,
