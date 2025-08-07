@@ -15,7 +15,7 @@ const requestSchema = z.object({
   createDaily: z.boolean().default(false),
   includeTimestamp: z.boolean().default(false),
   apiKey: z.string().min(1),
-  dailyNoteCache: z.record(z.string()).optional().default({}),
+  dailyNoteCache: z.record(z.string(), z.string()).optional().default({}),
 });
 
 export default {
@@ -87,10 +87,10 @@ async function handleSend(request: Request, ctx: ExecutionContext, corsHeaders: 
     console.error('Error handling send request:', error);
     
     if (error instanceof z.ZodError) {
-      console.error('Validation errors:', JSON.stringify(error.errors, null, 2));
+      console.error('Validation errors:', JSON.stringify(error.issues, null, 2));
       return new Response(JSON.stringify({
         error: 'Invalid request data',
-        details: error.errors,
+        details: error.issues,
       }), {
         status: 400,
         headers: {
@@ -139,7 +139,7 @@ async function processNoteCreation(data: z.infer<typeof requestSchema>): Promise
     if (data.createDaily) {
       try {
         // Check if we already have today's daily note cached
-        const cachedUrl = getCachedDailyNoteUrl(data.dailyNoteCache);
+        const cachedUrl = getCachedDailyNoteUrl(data.dailyNoteCache || {});
         
         if (cachedUrl) {
           // Use cached daily note URL

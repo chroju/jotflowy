@@ -18,11 +18,11 @@
   "author": "chroju",
   "license": "MIT",
   "devDependencies": {
-    "@cloudflare/workers-types": "^4.20240117.0",
-    "typescript": "^5.0.4",
-    "wrangler": "^3.114.0"
+    "@cloudflare/workers-types": "^4.20250806.0",
+    "typescript": "^5.9.2",
+    "wrangler": "^4.28.0"
   },
   "dependencies": {
-    "zod": "^3.22.4"
+    "zod": "^4.0.15"
   }
 }
