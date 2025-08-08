@@ -403,6 +403,7 @@ export const html = `
             font-weight: 500;
             color: var(--text-primary);
             margin-bottom: 4px;
+            font-size: 16px;
         }
 
         .history-item-meta {
@@ -1222,33 +1223,16 @@ export const html = `
                     <div class="history-item-meta">
                         \${item.location} • \${new Date(item.timestamp).toLocaleString('ja-JP')}
                     </div>
-                    <div style="margin-top: 8px; display: flex; gap: 8px;">
-                        <button onclick="loadFromHistory('\${item.id}')" style="background: var(--accent-color); color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 12px;">Load</button>
-                        \${item.bulletUrl ? \`<a href="\${item.bulletUrl}" target="_blank" rel="noopener" style="background: var(--success-color); color: white; border: none; padding: 4px 8px; border-radius: 4px; text-decoration: none; cursor: pointer; font-size: 12px;"><i class="fas fa-external-link-alt"></i> View</a>\` : ''}
-                        <button onclick="deleteHistoryItem('\${item.id}')" style="background: var(--error-color); color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 12px;"><i class="fas fa-trash-alt"></i> Remove</button>
+                    <div style="margin-top: 8px; display: flex; gap: 12px;">
+                        \${item.bulletUrl ? \`<a href="\${item.bulletUrl}" target="_blank" rel="noopener" style="background: none; color: #d8dee9; border: none; padding: 4px 0; text-decoration: none; cursor: pointer; font-size: 12px; display: flex; align-items: center; gap: 4px; transition: opacity 0.2s;" onmouseover="this.style.opacity='0.7'" onmouseout="this.style.opacity='1'"><i class="fas fa-external-link-alt"></i> View</a>\` : ''}
+                        <button onclick="deleteHistoryItem('\${item.id}')" style="background: none; color: #d08770; border: none; padding: 4px 0; cursor: pointer; font-size: 12px; display: flex; align-items: center; gap: 4px; transition: opacity 0.2s;" onmouseover="this.style.opacity='0.7'" onmouseout="this.style.opacity='1'">
+                            <i class="fas fa-trash-alt"></i> Remove
+                        </button>
                     </div>
                 </div>
             \`).join('');
         }
 
-        function loadFromHistory(id) {
-            const item = settings.history.find(h => h.id === id);
-            if (item) {
-                textArea.value = item.title;
-                noteArea.value = item.note || '';
-                
-                // Find matching location
-                const locationIndex = settings.locations.findIndex(l => l.name === item.location);
-                if (locationIndex >= 0) {
-                    currentLocationIndex = locationIndex.toString();
-                    safeSetItem('jotflowy_selectedLocation', currentLocationIndex);
-                }
-                
-                updateSubmitButtonState();
-                closeModal('historyModal');
-                showToast('Loaded from history', 'success');
-            }
-        }
 
         function deleteHistoryItem(id) {
             if (confirm('Remove from local history? (Workflowy post stays intact)')) {
