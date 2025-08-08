@@ -51,7 +51,7 @@ describe('Workflowy Utils', () => {
   describe('getTodayDateKey', () => {
     it('should return today date in YYYY-MM-DD format', () => {
       vi.useFakeTimers()
-      vi.setSystemTime(new Date('2023-01-15T14:30:00Z'))
+      vi.setSystemTime(new Date('2023-01-15T12:00:00')) // Use local time instead of UTC
       
       const result = getTodayDateKey()
       expect(result).toBe('2023-01-15')
@@ -59,17 +59,26 @@ describe('Workflowy Utils', () => {
 
     it('should handle different dates correctly', () => {
       vi.useFakeTimers()
-      vi.setSystemTime(new Date('2023-12-25T23:59:59Z'))
+      vi.setSystemTime(new Date('2023-12-25T12:00:00')) // Use local time instead of UTC
       
       const result = getTodayDateKey()
       expect(result).toBe('2023-12-25')
+    })
+
+    it('should use local date regardless of timezone', () => {
+      vi.useFakeTimers()
+      // Set to late night that would be next day in UTC but same day locally
+      vi.setSystemTime(new Date('2023-01-15T23:30:00')) 
+      
+      const result = getTodayDateKey()
+      expect(result).toBe('2023-01-15') // Should still be local date
     })
   })
 
   describe('getCachedDailyNoteUrl', () => {
     it('should return cached URL for today', () => {
       vi.useFakeTimers()
-      vi.setSystemTime(new Date('2023-01-15T14:30:00Z'))
+      vi.setSystemTime(new Date('2023-01-15T12:00:00'))
       
       const cache: DailyNoteCache = {
         '2023-01-15': 'https://workflowy.com/#/cached-daily-note'
@@ -81,7 +90,7 @@ describe('Workflowy Utils', () => {
 
     it('should return null when no cache for today', () => {
       vi.useFakeTimers()
-      vi.setSystemTime(new Date('2023-01-15T14:30:00Z'))
+      vi.setSystemTime(new Date('2023-01-15T12:00:00'))
       
       const cache: DailyNoteCache = {
         '2023-01-14': 'https://workflowy.com/#/yesterday'
@@ -100,7 +109,7 @@ describe('Workflowy Utils', () => {
   describe('cacheDailyNoteUrl', () => {
     it('should add today URL to cache', () => {
       vi.useFakeTimers()
-      vi.setSystemTime(new Date('2023-01-15T14:30:00Z'))
+      vi.setSystemTime(new Date('2023-01-15T12:00:00'))
       
       const cache: DailyNoteCache = {
         '2023-01-14': 'https://workflowy.com/#/yesterday'
@@ -116,7 +125,7 @@ describe('Workflowy Utils', () => {
 
     it('should overwrite existing today URL', () => {
       vi.useFakeTimers()
-      vi.setSystemTime(new Date('2023-01-15T14:30:00Z'))
+      vi.setSystemTime(new Date('2023-01-15T12:00:00'))
       
       const cache: DailyNoteCache = {
         '2023-01-15': 'https://workflowy.com/#/old-today'
@@ -133,7 +142,7 @@ describe('Workflowy Utils', () => {
   describe('cleanOldDailyNoteCache', () => {
     it('should keep recent entries within days limit', () => {
       vi.useFakeTimers()
-      vi.setSystemTime(new Date('2023-01-15T14:30:00Z'))
+      vi.setSystemTime(new Date('2023-01-15T12:00:00'))
       
       const cache: DailyNoteCache = {
         '2023-01-15': 'today',      // 0 days old - keep
@@ -160,7 +169,7 @@ describe('Workflowy Utils', () => {
 
     it('should use default 7 days when no limit specified', () => {
       vi.useFakeTimers()
-      vi.setSystemTime(new Date('2023-01-15T14:30:00Z'))
+      vi.setSystemTime(new Date('2023-01-15T12:00:00'))
       
       const cache: DailyNoteCache = {
         '2023-01-15': 'recent',
