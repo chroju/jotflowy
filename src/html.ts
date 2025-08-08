@@ -1354,7 +1354,11 @@ export const html = `
 
         function getTodayDateKey() {
             const today = new Date();
-            return today.toISOString().split('T')[0]; // "2025-01-08"
+            // Use local date instead of UTC to avoid timezone issues
+            const year = today.getFullYear();
+            const month = String(today.getMonth() + 1).padStart(2, '0');
+            const day = String(today.getDate()).padStart(2, '0');
+            return year + '-' + month + '-' + day;
         }
 
         function getCachedDailyNoteUrl() {

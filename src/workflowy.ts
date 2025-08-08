@@ -65,8 +65,8 @@ export async function createBullet(request: CreateBulletRequest): Promise<Create
 }
 
 export async function createDailyNote(apiKey: string, journalRootUrl: string): Promise<CreateBulletResponse> {
-  const today = new Date();
-  const dateString = today.toISOString().split('T')[0]; // YYYY-MM-DD format
+  // Use getTodayDateKey for consistency with caching logic
+  const dateString = getTodayDateKey(); // YYYY-MM-DD format
 
   return createBullet({
     apiKey,
@@ -82,7 +82,11 @@ export interface DailyNoteCache {
 
 export function getTodayDateKey(): string {
   const today = new Date();
-  return today.toISOString().split('T')[0]; // "2025-01-08"
+  // Use local date instead of UTC to avoid timezone issues
+  const year = today.getFullYear();
+  const month = String(today.getMonth() + 1).padStart(2, '0');
+  const day = String(today.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 }
 
 export function getCachedDailyNoteUrl(cache: DailyNoteCache): string | null {
