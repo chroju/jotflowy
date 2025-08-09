@@ -516,7 +516,7 @@ export const html = `
             </div>
             <div class="modal-body">
                 <p style="color: var(--text-secondary); margin-bottom: 20px;">
-                    Let's set up your Workflowy integration. You'll need an API key and a valid save location to get started.
+                    Welcome! Jotflowy offers smart URL title extraction, intelligent daily note caching, and secure localStorage handling. Let's set up your API key and first save location to get started.
                 </p>
                 
                 <div class="input-group">
@@ -539,7 +539,7 @@ export const html = `
                         <label for="setupLocationDaily">Create daily note automatically</label>
                     </div>
                     <div style="font-size: 12px; color: var(--text-muted); margin-top: 8px;">
-                        <i class="fas fa-lightbulb"></i> Tip: Open Workflowy, navigate to where you want to save notes, and copy the URL from your browser.
+                        <i class="fas fa-lightbulb"></i> Tip: Open Workflowy, navigate to where you want to save notes, and copy the URL from your browser. You can now use the global Daily Note toggle for flexible daily note creation.
                     </div>
                 </div>
 
@@ -580,7 +580,7 @@ export const html = `
                         <label for="urlExpansionCheckbox">Expand URLs to Markdown links</label>
                     </div>
                     <div style="font-size: 12px; color: var(--text-muted); margin-top: 8px;">
-                        <i class="fas fa-info-circle"></i> When enabled, URLs like "https://example.com" become "[Page Title](https://example.com)"
+                        <i class="fas fa-info-circle"></i> Automatically fetches page titles and converts URLs to Markdown format: "[Page Title](URL)". Skips social media to avoid rate limits.
                     </div>
                 </div>
                 
@@ -588,6 +588,9 @@ export const html = `
                     <div class="checkbox-wrapper">
                         <input type="checkbox" id="timestampCheckbox" checked>
                         <label for="timestampCheckbox">Add timestamp to note (YYYY-MM-DD HH:MM)</label>
+                    </div>
+                    <div style="font-size: 12px; color: var(--text-muted); margin-top: 8px;">
+                        <i class="fas fa-info-circle"></i> Adds current date and time to your notes using your local timezone. Helps track when ideas were captured.
                     </div>
                 </div>
                 
@@ -597,7 +600,7 @@ export const html = `
                         <label for="dailyNoteCheckbox">Save to daily note (create if needed)</label>
                     </div>
                     <div style="font-size: 12px; color: var(--text-muted); margin-top: 8px;">
-                        <i class="fas fa-info-circle"></i> When enabled, notes are saved to today's daily note page instead of the selected location
+                        <i class="fas fa-info-circle"></i> Creates a daily note bullet with today's date (YYYY-MM-DD) under the selected location. Reuses existing daily notes for the same day to prevent duplicates.
                     </div>
                 </div>
                 
@@ -693,7 +696,7 @@ export const html = `
                     <li><strong>History:</strong> View past notes and jump to them in Workflowy</li>
                     <li><strong>Multiple Locations:</strong> Save to different Workflowy bullets</li>
                     <li><strong>Timestamp:</strong> Automatically adds YYYY-MM-DD HH:MM to your note</li>
-                    <li><strong>Daily Notes:</strong> Automatically creates/reuses daily note bullets (YYYY-MM-DD format)</li>
+                    <li><strong>Smart Daily Notes:</strong> Intelligent caching system creates/reuses daily note bullets with local timezone support</li>
                 </ul>
                 
             </div>
