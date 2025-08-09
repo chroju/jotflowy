@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "description": "A modern note-taking app for Workflowy using the official API",
   "main": "src/index.ts",
+  "type": "module",
   "private": true,
   "scripts": {
     "dev": "wrangler dev",
