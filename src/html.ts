@@ -555,10 +555,6 @@ export const html = `
                     <label class="input-label">Step 2: Default Save Location</label>
                     <input type="text" id="setupLocationNameInput" placeholder="Location name (e.g., Daily Notes, Inbox)">
                     <input type="url" id="setupLocationUrlInput" placeholder="https://workflowy.com/#/your-location">
-                    <div class="checkbox-wrapper">
-                        <input type="checkbox" id="setupLocationDaily">
-                        <label for="setupLocationDaily">Create daily note automatically</label>
-                    </div>
                     <div style="font-size: 12px; color: var(--text-muted); margin-top: 8px;">
                         <i class="fas fa-lightbulb"></i> Tip: Open Workflowy, navigate to where you want to save notes, and copy the URL from your browser. You can now use the global Daily Note toggle for flexible daily note creation.
                     </div>
@@ -590,9 +586,14 @@ export const html = `
                         <input type="password" id="apiKeyInput" placeholder="Enter your Workflowy API key">
                         <button type="button" class="password-toggle" onclick="togglePasswordVisibility('apiKeyInput', this)"><i class="fas fa-eye"></i></button>
                     </div>
-                    <button id="getApiKeyBtn" class="btn btn-link">
-                        <i class="fas fa-key"></i> Get API Key from Workflowy
-                    </button>
+                    <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+                        <button id="getApiKeyBtn" class="btn btn-link">
+                            <i class="fas fa-key"></i> Get API Key from Workflowy
+                        </button>
+                        <button id="clearApiKeyBtn" class="btn btn-link" style="color: var(--danger-color);">
+                            <i class="fas fa-trash"></i> Clear API Key
+                        </button>
+                    </div>
                 </div>
 
                 <div class="input-group">
@@ -805,7 +806,7 @@ export const html = `
 
         // Initialize settings with safe defaults
         let settings = {
-            apiKey: safeGetItem('jotflowy_apiKey', ''),
+            apiKey: '', // Now handled by cookies, not localStorage
             locations: safeParseJSON(safeGetItem('jotflowy_locations'), []),
             history: safeParseJSON(safeGetItem('jotflowy_history'), []),
             dailyNoteCache: safeParseJSON(safeGetItem('jotflowy_dailyNoteCache'), {}),
@@ -879,7 +880,7 @@ export const html = `
         const historyLimit = 30; // Fixed limit
 
         // Initialize app
-        document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('DOMContentLoaded', async function() {
             // Validate and recover settings before doing anything else
             validateAndRecoverSettings();
             
@@ -890,7 +891,15 @@ export const html = `
             
             initializeDefaultLocations();
             loadSettings();
+            
+            // Check authentication status
+            const isAuthenticated = await checkAuthentication();
+            if (isAuthenticated) {
+                // Keep API key status for UI, but don't store the actual key
+                settings.apiKey = 'authenticated';
+            }
             updateMainUI();
+            updateAuthenticationUI(isAuthenticated);
             updateSaveLocationSelect();
             updateSubmitButtonState();
             bindEventListeners();
@@ -913,7 +922,8 @@ export const html = `
         }
 
         function loadSettings() {
-            document.getElementById('apiKeyInput').value = settings.apiKey;
+            // Don't load API key from localStorage - it's now handled by cookies
+            document.getElementById('apiKeyInput').value = '';
             document.getElementById('urlExpansionCheckbox').checked = urlExpansionEnabled;
             document.getElementById('timestampCheckbox').checked = timestampEnabled;
             // Load global daily note setting
@@ -942,9 +952,99 @@ export const html = `
             });
         }
 
+        // Authentication functions
+        async function authenticateUser(apiKey, expiration = '30days', customDays = null) {
+            try {
+                console.log('Attempting authentication...');
+                const requestBody = {
+                    apiKey,
+                    expiration
+                };
+                
+                // Only add customDays if it's not null
+                if (customDays !== null) {
+                    requestBody.customDays = customDays;
+                }
+                
+                const response = await fetch('/api/auth', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(requestBody),
+                });
+
+                console.log('Auth response status:', response.status);
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    console.log('Authentication successful');
+                    return { success: true, expiresAt: data.expiresAt };
+                } else {
+                    const errorData = await response.json();
+                    console.log('Authentication failed:', errorData);
+                    return { success: false, error: errorData.error || 'Authentication failed' };
+                }
+            } catch (error) {
+                console.error('Authentication error:', error);
+                return { success: false, error: 'Network error: ' + error.message };
+            }
+        }
+
+        async function checkAuthentication() {
+            try {
+                const response = await fetch('/api/auth/check');
+                const data = await response.json();
+                return data.authenticated;
+            } catch (error) {
+                console.error('Auth check error:', error);
+                return false;
+            }
+        }
+
+        async function logout() {
+            try {
+                const response = await fetch('/api/logout', {
+                    method: 'POST',
+                });
+                
+                if (response.ok) {
+                    // Clear local API key from settings
+                    settings.apiKey = '';
+                    updateAuthenticationUI(false);
+                    showToast('Logged out successfully', 'success');
+                    return true;
+                } else {
+                    showToast('Logout failed', 'error');
+                    return false;
+                }
+            } catch (error) {
+                console.error('Logout error:', error);
+                showToast('Logout failed', 'error');
+                return false;
+            }
+        }
+
+        function updateAuthenticationUI(isAuthenticated) {
+            const logoutBtn = document.getElementById('logoutBtn');
+            const sessionStatus = document.getElementById('sessionStatus');
+            const apiKeyInput = document.getElementById('apiKeyInput');
+            
+            if (isAuthenticated) {
+                logoutBtn.style.display = 'inline-block';
+                // Show that user is authenticated
+                apiKeyInput.placeholder = 'Currently authenticated (enter new key to re-authenticate)';
+                // Show session status will be implemented when we get expiry info
+            } else {
+                logoutBtn.style.display = 'none';
+                sessionStatus.style.display = 'none';
+                apiKeyInput.placeholder = 'Enter your Workflowy API key';
+            }
+        }
+
         function saveSettings() {
+            // Note: API key is now handled by authentication, not localStorage
             const success = [
-                safeSetItem('jotflowy_apiKey', settings.apiKey),
                 safeSetItem('jotflowy_locations', JSON.stringify(settings.locations)),
                 safeSetItem('jotflowy_history', JSON.stringify(settings.history)),
                 safeSetItem('jotflowy_dailyNoteCache', JSON.stringify(settings.dailyNoteCache)),
@@ -1009,20 +1109,57 @@ export const html = `
             bindModalControls();
 
             // Settings
-            document.getElementById('saveSettingsBtn').addEventListener('click', function() {
-                settings.apiKey = document.getElementById('apiKeyInput').value.trim();
+            document.getElementById('saveSettingsBtn').addEventListener('click', async function() {
+                const apiKey = document.getElementById('apiKeyInput').value.trim();
                 urlExpansionEnabled = document.getElementById('urlExpansionCheckbox').checked;
                 timestampEnabled = document.getElementById('timestampCheckbox').checked;
                 settings.globalDailyNote = document.getElementById('dailyNoteCheckbox').checked;
                 
+                // Get security settings
+                const selectedExpiration = document.querySelector('input[name="expiration"]:checked').value;
+                const customDays = selectedExpiration === 'custom' ? 
+                    parseInt(document.getElementById('customDays').value) : null;
+                
+                // Save non-API-key settings first
                 safeSetItem('jotflowy_urlExpansionEnabled', urlExpansionEnabled.toString());
                 safeSetItem('jotflowy_timestampEnabled', timestampEnabled.toString());
-                
                 saveSettings();
-                updateMainUI(); // Update main UI with new settings
+                
+                // Handle API key authentication if provided
+                if (apiKey) {
+                    const authResult = await authenticateUser(apiKey, selectedExpiration, customDays);
+                    if (authResult.success) {
+                        settings.apiKey = apiKey; // Keep in memory for UI updates
+                        updateAuthenticationUI(true);
+                        updateMainUI();
+                        showToast('Settings saved and authenticated successfully!', 'success');
+                        
+                        // Show session expiry
+                        if (authResult.expiresAt) {
+                            const expiryDate = new Date(authResult.expiresAt);
+                            document.getElementById('sessionExpiry').textContent = 
+                                expiryDate.toLocaleString();
+                            document.getElementById('sessionStatus').style.display = 'block';
+                        }
+                    } else {
+                        showToast('Authentication failed: ' + authResult.error, 'error');
+                        updateAuthenticationUI(false);
+                    }
+                } else {
+                    updateMainUI();
+                    showToast('Settings saved!', 'success');
+                }
                 updateSubmitButtonState();
                 closeModal('settingsModal');
-                showToast('Settings saved successfully!', 'success');
+            });
+
+            // Logout button
+            document.getElementById('logoutBtn').addEventListener('click', async function() {
+                const success = await logout();
+                if (success) {
+                    updateMainUI();
+                    updateSubmitButtonState();
+                }
             });
 
             // Setup modal controls
@@ -1032,6 +1169,34 @@ export const html = `
             document.getElementById('getApiKeyBtn').addEventListener('click', function() {
                 window.open('https://workflowy.com/api-key', '_blank');
                 showToast('Copy your API key from Workflowy and paste it here', 'success');
+            });
+
+            // Clear API key button
+            document.getElementById('clearApiKeyBtn').addEventListener('click', async function() {
+                if (confirm('Are you sure you want to clear your API key? You will need to re-authenticate.')) {
+                    try {
+                        // Call logout API to clear the cookie
+                        await fetch('/api/logout', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                        });
+                        
+                        // Clear local API key state
+                        settings.apiKey = '';
+                        document.getElementById('apiKeyInput').value = '';
+                        
+                        // Update UI to unauthenticated state
+                        updateAuthenticationUI(false);
+                        updateMainUI();
+                        
+                        showToast('API key cleared successfully', 'success');
+                    } catch (error) {
+                        console.error('Error clearing API key:', error);
+                        showToast('Failed to clear API key', 'error');
+                    }
+                }
             });
 
             // Locations management
@@ -1127,7 +1292,6 @@ export const html = `
                         createDaily: shouldCreateDaily,
                         includeTimestamp,
                         expandUrls: urlExpansionEnabled,
-                        apiKey: settings.apiKey,
                         dailyNoteCache: settings.dailyNoteCache,
                     }),
                     signal: controller.signal
@@ -1378,20 +1542,27 @@ export const html = `
             document.getElementById('completeSetupBtn').disabled = !isValid;
         }
 
-        function completeSetup() {
+        async function completeSetup() {
             const apiKey = document.getElementById('setupApiKeyInput').value.trim();
             const locationName = document.getElementById('setupLocationNameInput').value.trim();
             const locationUrl = document.getElementById('setupLocationUrlInput').value.trim();
-            const createDaily = document.getElementById('setupLocationDaily').checked;
+            
 
-            // Save API key
+            // Authenticate API key first
+            const authResult = await authenticateUser(apiKey, '30days', null); // Default to 30 days
+            if (!authResult.success) {
+                showToast('Authentication failed: ' + authResult.error, 'error');
+                return;
+            }
+
+            // Save API key status for UI
             settings.apiKey = apiKey;
 
             // Add initial location
             settings.locations = [{
                 name: locationName,
                 url: locationUrl,
-                createDaily: createDaily
+                createDaily: false  // No longer used, always false
             }];
             
             // Auto-select the initial location
@@ -1406,6 +1577,7 @@ export const html = `
             updateMainUI();
             updateSaveLocationSelect();
             updateSubmitButtonState();
+            updateAuthenticationUI(true); // Mark as authenticated
 
             closeModal('setupModal');
             showToast('Setup completed! You can now start using Jotflowy.', 'success');

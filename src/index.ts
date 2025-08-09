@@ -23,7 +23,10 @@ const authSchema = z.object({
   apiKey: z.string().min(1),
   expiration: z.enum(['1hour', '1day', '7days', '30days', 'never', 'custom']).default('30days'),
   customDays: z.number().min(1).max(365).optional(),
-});
+}).transform(data => ({
+  ...data,
+  customDays: data.customDays === null ? undefined : data.customDays
+}));
 
 export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
@@ -93,7 +96,40 @@ export default {
 async function handleAuth(request: Request, env: Env, corsHeaders: Record<string, string>): Promise<Response> {
   try {
     const masterKey = env.ENCRYPTION_KEY || 'default-key-change-in-production';
-    const data = authSchema.parse(await request.json());
+    const rawData = await request.json();
+    const data = authSchema.parse(rawData);
+
+    // Test API key by making a simple request to Workflowy
+    try {
+      const testResponse = await fetch('https://workflowy.com/api/me/', {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${data.apiKey}`,
+        },
+      });
+
+      if (!testResponse.ok) {
+        return new Response(JSON.stringify({
+          error: 'Invalid API key',
+        }), {
+          status: 401,
+          headers: {
+            'Content-Type': 'application/json',
+            ...corsHeaders,
+          },
+        });
+      }
+    } catch (error) {
+      return new Response(JSON.stringify({
+        error: 'Failed to verify API key',
+      }), {
+        status: 400,
+        headers: {
+          'Content-Type': 'application/json',
+          ...corsHeaders,
+        },
+      });
+    }
 
     // Calculate expiration time
     const expirationSeconds = getExpirationSeconds(data.expiration, data.customDays);
@@ -185,7 +221,7 @@ async function handleAuthCheck(request: Request, env: Env, corsHeaders: Record<s
   }
 }
 
-function getExpirationSeconds(expiration: string, customDays?: number): number {
+function getExpirationSeconds(expiration: string, customDays?: number | null): number {
   switch (expiration) {
     case '1hour': return 3600;
     case '1day': return 86400;
