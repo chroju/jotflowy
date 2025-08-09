@@ -6,10 +6,12 @@ A modern, streamlined note-taking app for Workflowy using the official API. Quic
 
 - **Official Workflowy API Integration** - Uses the stable, official API instead of reverse-engineered endpoints
 - **Dual Text Areas** - Separate title and note fields for better organization
-- **Smart Save Locations** - Predefined locations including automatic daily note creation
+- **Global Daily Note Toggle** - Create daily notes from any location when enabled
+- **Smart URL Title Extraction** - Automatically converts URLs to Markdown links with page titles
+- **Daily Note Caching System** - Intelligent caching prevents duplicate daily notes
 - **Timestamp Options** - Optional automatic timestamp insertion (YYYY-MM-DD HH:mm format)
-- **Post History** - View and reuse recent posts (stored locally)
-- **URL Title Extraction** - Automatically fetch page titles when pasting URLs
+- **Post History** - View and reuse recent posts with daily note indicators (stored locally)
+- **Input Security Features** - Safe localStorage handling with automatic recovery
 - **One-Click API Setup** - Direct link to Workflowy's API key page
 - **Mobile Optimized** - Responsive design for all devices
 - **No Server Storage** - All settings stored locally in your browser
@@ -48,22 +50,92 @@ Configure your preferred Workflowy locations:
 
 1. **Title Field**: Enter the main content or title of your note
 2. **Note Field** (optional): Add detailed information or context
-3. **Timestamp Option**: Check to automatically add current date/time to notes
+3. **Settings**: Configure options in Settings modal:
+   - **Timestamp**: Add current date/time to notes (YYYY-MM-DD HH:MM)
+   - **Daily Note**: Save to today's daily note instead of selected location
+   - **URL Expansion**: Convert URLs to Markdown links with page titles
 4. **Save Location**: Choose where to save your note
 5. **Submit**: Your note is instantly saved to Workflowy
 
+## Advanced Features
+
+### Smart URL Title Extraction
+
+When URL expansion is enabled in Settings, Jotflowy automatically:
+
+- **Detects URLs** in the title field when posting
+- **Fetches page titles** from the target website
+- **Converts to Markdown format**: `[Page Title](https://example.com)`
+- **Preserves original URLs** if title extraction fails
+- **Skips social media** like x.com to avoid rate limiting
+
+**Example:**
+```
+Input:  https://github.com/workflowy/api
+Output: [Workflowy API](https://github.com/workflowy/api)
+```
+
+### Daily Note Caching System
+
+Jotflowy includes intelligent daily note management:
+
+- **Automatic Detection** - Recognizes when daily notes already exist for today
+- **Smart Caching** - Stores daily note URLs to prevent duplicates
+- **Cross-Location Support** - Works with the global daily note toggle
+- **Cache Cleanup** - Automatically removes old cache entries (7+ days)
+- **Timezone Aware** - Uses your browser's local timezone for date calculation
+
+**How it works:**
+1. First daily note of the day creates a new `YYYY-MM-DD` titled bullet
+2. Subsequent daily notes reuse the cached URL for the same day
+3. Cache persists across browser sessions but cleans up automatically
+
+### Input Security Features
+
+Jotflowy includes comprehensive safety measures:
+
+- **Safe localStorage Access** - Gracefully handles storage failures, corruption, and quota limits
+- **JSON Parsing Safety** - Recovers from malformed JSON data automatically  
+- **Settings Validation** - Validates and repairs corrupted configuration data
+- **Error Recovery** - Continues functioning even when localStorage is unavailable
+- **Data Integrity** - Prevents data loss from browser storage limitations
+
+**Automatic Recovery:**
+- Invalid location data is filtered out
+- Corrupted settings revert to safe defaults
+- History data is preserved even if some entries are damaged
+- Users are notified when automatic repairs occur
+
 ## Configuration
 
-### Save Locations
-Save locations are stored in your browser's local storage. You can configure:
-- Location name (displayed in dropdown)
-- Workflowy URL (where notes will be saved)
-- Daily note creation (for journal-style locations)
+### Settings Modal
 
-### API Settings
+Access all configuration through the Settings button:
+
+**API Configuration:**
 - **API Key**: Your Workflowy API key (stored securely in browser)
-- **Default Location**: Your preferred save location
-- **Timestamp Format**: YYYY-MM-DD HH:mm (local timezone)
+- Direct link to get API key from Workflowy
+
+**Feature Toggles:**
+- **URL Expansion**: Convert URLs to `[Title](URL)` Markdown format
+- **Timestamp**: Add `YYYY-MM-DD HH:MM` timestamp to notes (uses local timezone)  
+- **Daily Note**: Global toggle to save all notes to today's daily note
+
+**Management:**
+- **History**: View past notes with daily note indicators
+- **Locations**: Manage save locations
+
+### Save Locations
+
+Configure your Workflowy save destinations:
+- **Location name**: Displayed in the main dropdown
+- **Workflowy URL**: Direct link to specific location (e.g., `https://workflowy.com/#/abc123`)
+- Locations can be any valid Workflowy URL
+
+**Tips:**
+- Use specific URLs for better organization
+- Daily note creation is now handled by the global toggle
+- URLs are validated to ensure they point to workflowy.com
 
 ## Development
 

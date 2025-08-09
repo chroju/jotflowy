@@ -497,12 +497,6 @@ export const html = `
                 </div>
             </div>
             
-            <div class="control-row">
-                <div class="checkbox-wrapper">
-                    <input type="checkbox" id="mainTimestampCheckbox" checked>
-                    <label for="mainTimestampCheckbox">Add timestamp to note (YYYY-MM-DD HH:MM)</label>
-                </div>
-            </div>
             
             <div class="button-row">
                 <button id="submitBtn" class="btn btn-primary" disabled>
@@ -523,7 +517,7 @@ export const html = `
             </div>
             <div class="modal-body">
                 <p style="color: var(--text-secondary); margin-bottom: 20px;">
-                    Let's set up your Workflowy integration. You'll need an API key and a valid save location to get started.
+                    Welcome! Jotflowy offers smart URL title extraction, intelligent daily note caching, and secure localStorage handling. Let's set up your API key and first save location to get started.
                 </p>
                 
                 <div class="input-group">
@@ -546,7 +540,7 @@ export const html = `
                         <label for="setupLocationDaily">Create daily note automatically</label>
                     </div>
                     <div style="font-size: 12px; color: var(--text-muted); margin-top: 8px;">
-                        <i class="fas fa-lightbulb"></i> Tip: Open Workflowy, navigate to where you want to save notes, and copy the URL from your browser.
+                        <i class="fas fa-lightbulb"></i> Tip: Open Workflowy, navigate to where you want to save notes, and copy the URL from your browser. You can now use the global Daily Note toggle for flexible daily note creation.
                     </div>
                 </div>
 
@@ -587,9 +581,30 @@ export const html = `
                         <label for="urlExpansionCheckbox">Expand URLs to Markdown links</label>
                     </div>
                     <div style="font-size: 12px; color: var(--text-muted); margin-top: 8px;">
-                        <i class="fas fa-info-circle"></i> When enabled, URLs like "https://example.com" become "[Page Title](https://example.com)"
+                        <i class="fas fa-info-circle"></i> Automatically fetches page titles and converts URLs to Markdown format: "[Page Title](URL)". Skips social media to avoid rate limits.
                     </div>
                 </div>
+                
+                <div class="input-group">
+                    <div class="checkbox-wrapper">
+                        <input type="checkbox" id="timestampCheckbox" checked>
+                        <label for="timestampCheckbox">Add timestamp to note (YYYY-MM-DD HH:MM)</label>
+                    </div>
+                    <div style="font-size: 12px; color: var(--text-muted); margin-top: 8px;">
+                        <i class="fas fa-info-circle"></i> Adds current date and time to your notes using your local timezone. Helps track when ideas were captured.
+                    </div>
+                </div>
+                
+                <div class="input-group">
+                    <div class="checkbox-wrapper">
+                        <input type="checkbox" id="dailyNoteCheckbox">
+                        <label for="dailyNoteCheckbox">Save to daily note (create if needed)</label>
+                    </div>
+                    <div style="font-size: 12px; color: var(--text-muted); margin-top: 8px;">
+                        <i class="fas fa-info-circle"></i> Creates a daily note bullet with today's date (YYYY-MM-DD) under the selected location. Reuses existing daily notes for the same day to prevent duplicates.
+                    </div>
+                </div>
+                
                 
                 <hr style="border-color: var(--border-color); margin: 20px 0;">
                 
@@ -627,10 +642,6 @@ export const html = `
                 <div class="input-group">
                     <label class="input-label">Workflowy URL</label>
                     <input type="url" id="newLocationUrl" placeholder="https://workflowy.com/#/...">
-                </div>
-                <div class="checkbox-wrapper">
-                    <input type="checkbox" id="newLocationDaily">
-                    <label for="newLocationDaily">Create daily note automatically</label>
                 </div>
                 <div class="button-row">
                     <button id="addLocationBtn" class="btn btn-primary">Add Location</button>
@@ -687,7 +698,7 @@ export const html = `
                     <li><strong>History:</strong> View past notes and jump to them in Workflowy</li>
                     <li><strong>Multiple Locations:</strong> Save to different Workflowy bullets</li>
                     <li><strong>Timestamp:</strong> Automatically adds YYYY-MM-DD HH:MM to your note</li>
-                    <li><strong>Daily Notes:</strong> Automatically creates/reuses daily note bullets (YYYY-MM-DD format)</li>
+                    <li><strong>Smart Daily Notes:</strong> Intelligent caching system creates/reuses daily note bullets with local timezone support</li>
                 </ul>
                 
             </div>
@@ -736,7 +747,8 @@ export const html = `
             apiKey: safeGetItem('jotflowy_apiKey', ''),
             locations: safeParseJSON(safeGetItem('jotflowy_locations'), []),
             history: safeParseJSON(safeGetItem('jotflowy_history'), []),
-            dailyNoteCache: safeParseJSON(safeGetItem('jotflowy_dailyNoteCache'), {})
+            dailyNoteCache: safeParseJSON(safeGetItem('jotflowy_dailyNoteCache'), {}),
+            globalDailyNote: safeParseJSON(safeGetItem('jotflowy_globalDailyNote'), false)
         };
 
         // Settings validation and recovery
@@ -797,7 +809,6 @@ export const html = `
         const textArea = document.getElementById('textArea');
         const noteArea = document.getElementById('noteArea');
         const mainLocationSelect = document.getElementById('mainLocationSelect');
-        const mainTimestampCheckbox = document.getElementById('mainTimestampCheckbox');
         const submitBtn = document.getElementById('submitBtn');
         
         // Settings state with safe localStorage access
@@ -843,6 +854,11 @@ export const html = `
         function loadSettings() {
             document.getElementById('apiKeyInput').value = settings.apiKey;
             document.getElementById('urlExpansionCheckbox').checked = urlExpansionEnabled;
+            document.getElementById('timestampCheckbox').checked = timestampEnabled;
+            // Load global daily note setting
+            if (settings.globalDailyNote !== undefined) {
+                document.getElementById('dailyNoteCheckbox').checked = settings.globalDailyNote;
+            }
             updateSettingsModal();
         }
         
@@ -863,9 +879,6 @@ export const html = `
                 }
                 mainLocationSelect.appendChild(option);
             });
-            
-            // Set timestamp checkbox in main UI
-            mainTimestampCheckbox.checked = timestampEnabled;
         }
 
         function saveSettings() {
@@ -873,7 +886,8 @@ export const html = `
                 safeSetItem('jotflowy_apiKey', settings.apiKey),
                 safeSetItem('jotflowy_locations', JSON.stringify(settings.locations)),
                 safeSetItem('jotflowy_history', JSON.stringify(settings.history)),
-                safeSetItem('jotflowy_dailyNoteCache', JSON.stringify(settings.dailyNoteCache))
+                safeSetItem('jotflowy_dailyNoteCache', JSON.stringify(settings.dailyNoteCache)),
+                safeSetItem('jotflowy_globalDailyNote', JSON.stringify(settings.globalDailyNote || false))
             ].every(Boolean);
             
             if (!success) {
@@ -908,10 +922,6 @@ export const html = `
                 updateSettingsModal(); // Sync with settings modal
             });
             
-            mainTimestampCheckbox.addEventListener('change', function() {
-                timestampEnabled = mainTimestampCheckbox.checked;
-                safeSetItem('jotflowy_timestampEnabled', timestampEnabled.toString());
-            });
 
             // Submit form
             submitBtn.addEventListener('click', handleSubmit);
@@ -941,7 +951,11 @@ export const html = `
             document.getElementById('saveSettingsBtn').addEventListener('click', function() {
                 settings.apiKey = document.getElementById('apiKeyInput').value.trim();
                 urlExpansionEnabled = document.getElementById('urlExpansionCheckbox').checked;
+                timestampEnabled = document.getElementById('timestampCheckbox').checked;
+                settings.globalDailyNote = document.getElementById('dailyNoteCheckbox').checked;
+                
                 safeSetItem('jotflowy_urlExpansionEnabled', urlExpansionEnabled.toString());
+                safeSetItem('jotflowy_timestampEnabled', timestampEnabled.toString());
                 
                 saveSettings();
                 updateMainUI(); // Update main UI with new settings
@@ -1002,7 +1016,8 @@ export const html = `
             const note = noteArea.value.trim();
             const locationIndex = parseInt(mainLocationSelect.value);
             const location = settings.locations[locationIndex];
-            const includeTimestamp = mainTimestampCheckbox.checked;
+            const includeTimestamp = timestampEnabled;
+            
 
             if (!title || !location || !settings.apiKey) {
                 showToast('Please configure settings first', 'error');
@@ -1015,15 +1030,18 @@ export const html = `
 
             try {
                 let finalSaveLocationUrl = location.url;
-                let shouldCreateDaily = location.createDaily;
+                let shouldCreateDaily = settings.globalDailyNote;
+                // Keep original value for history recording
+                const originalDailyNote = shouldCreateDaily;
+                
                 
                 // Handle daily note caching
-                if (location.createDaily) {
+                if (shouldCreateDaily) {
                     const cachedDailyNoteUrl = getCachedDailyNoteUrl();
                     if (cachedDailyNoteUrl) {
                         // Use cached daily note URL
                         finalSaveLocationUrl = cachedDailyNoteUrl;
-                        shouldCreateDaily = false;
+                        shouldCreateDaily = false; // Don't create new daily note
                         console.log('Using cached daily note URL:', cachedDailyNoteUrl);
                         showToast('Using existing daily note for today', 'success');
                     } else {
@@ -1061,7 +1079,7 @@ export const html = `
                     showToast('Note saved successfully!', 'success');
                     
                     // Handle daily note caching for newly created daily notes
-                    if (location.createDaily && shouldCreateDaily && responseData.dailyNoteUrl) {
+                    if (shouldCreateDaily && responseData.dailyNoteUrl) {
                         // Cache the daily note URL for future use
                         cacheDailyNoteUrl(responseData.dailyNoteUrl);
                         console.log('Cached new daily note URL:', responseData.dailyNoteUrl);
@@ -1075,6 +1093,7 @@ export const html = `
                         location: location.name,
                         timestamp: new Date().toISOString(),
                         bulletUrl: responseData.new_bullet_url || null,
+                        isDailyNote: originalDailyNote,
                     };
                     settings.history.unshift(historyItem);
                     if (settings.history.length > historyLimit) {
@@ -1148,7 +1167,6 @@ export const html = `
         function addLocation() {
             const name = document.getElementById('newLocationName').value.trim();
             const url = document.getElementById('newLocationUrl').value.trim();
-            const createDaily = document.getElementById('newLocationDaily').checked;
 
             if (!name || !url) {
                 showToast('Please enter both name and URL', 'error');
@@ -1161,7 +1179,7 @@ export const html = `
             }
 
             const newLocationIndex = settings.locations.length;
-            settings.locations.push({ name, url, createDaily });
+            settings.locations.push({ name, url, createDaily: false });
             
             // Auto-select the new location
             currentLocationIndex = newLocationIndex.toString();
@@ -1176,7 +1194,6 @@ export const html = `
             // Clear form
             document.getElementById('newLocationName').value = '';
             document.getElementById('newLocationUrl').value = '';
-            document.getElementById('newLocationDaily').checked = false;
 
             showToast('Location added and selected!', 'success');
         }
@@ -1203,7 +1220,6 @@ export const html = `
                     <div>
                         <div style="font-weight: 500; color: var(--text-primary);">\${location.name}</div>
                         <div style="font-size: 12px; color: var(--text-muted);">\${location.url}</div>
-                        \${location.createDaily ? '<div style="font-size: 11px; color: var(--success-color); font-weight: 500;"><i class="fas fa-calendar-alt"></i> Daily note enabled</div>' : ''}
                     </div>
                     <button onclick="removeLocation(\${index})" style="background: var(--error-color); color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer;">Remove</button>
                 </div>
@@ -1222,6 +1238,7 @@ export const html = `
                     <div class="history-item-title">\${item.title}</div>
                     <div class="history-item-meta">
                         \${item.location} • \${new Date(item.timestamp).toLocaleString('ja-JP')}
+                        \${item.isDailyNote ? ' • <span style="color: var(--success-color); font-weight: 500;"><i class="fas fa-calendar-alt"></i> Daily note</span>' : ''}
                     </div>
                     <div style="margin-top: 8px; display: flex; gap: 12px;">
                         \${item.bulletUrl ? \`<a href="\${item.bulletUrl}" target="_blank" rel="noopener" style="background: none; color: #d8dee9; border: none; padding: 4px 0; text-decoration: none; cursor: pointer; font-size: 12px; display: flex; align-items: center; gap: 4px; transition: opacity 0.2s;" onmouseover="this.style.opacity='0.7'" onmouseout="this.style.opacity='1'"><i class="fas fa-external-link-alt"></i> View</a>\` : ''}
