@@ -1,0 +1,8 @@
+{
+  "hooks": {
+    "bash-pre": {
+      "command": "echo 'Running pre-commit checks...' && npm run test:run && npm run typecheck && echo 'All checks passed!'",
+      "on": ["git commit*"]
+    }
+  }
+}

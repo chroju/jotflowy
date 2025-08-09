@@ -26,25 +26,58 @@ describe('Workflowy Utils', () => {
       vi.useFakeTimers()
       vi.setSystemTime(new Date('2023-01-15T14:30:00Z'))
       
+      // Mock Intl.DateTimeFormat to return Asia/Tokyo timezone
+      const originalDateTimeFormat = Intl.DateTimeFormat
+      vi.stubGlobal('Intl', {
+        ...Intl,
+        DateTimeFormat: vi.fn().mockImplementation(() => ({
+          resolvedOptions: () => ({ timeZone: 'Asia/Tokyo' })
+        }))
+      })
+      
       const result = buildNoteWithTimestamp('', true)
       expect(result).toBe('2023-01-15 23:30') // Asia/Tokyo timezone
+      
+      vi.unstubAllGlobals()
     })
 
     it('should prepend timestamp to note when timestamp enabled', () => {
       vi.useFakeTimers()
       vi.setSystemTime(new Date('2023-01-15T14:30:00Z'))
       
+      // Mock Intl.DateTimeFormat to return Asia/Tokyo timezone
+      const originalDateTimeFormat = Intl.DateTimeFormat
+      vi.stubGlobal('Intl', {
+        ...Intl,
+        DateTimeFormat: vi.fn().mockImplementation(() => ({
+          resolvedOptions: () => ({ timeZone: 'Asia/Tokyo' })
+        }))
+      })
+      
       const note = 'Test note content'
       const result = buildNoteWithTimestamp(note, true)
       expect(result).toBe('2023-01-15 23:30\n\nTest note content')
+      
+      vi.unstubAllGlobals()
     })
 
     it('should handle whitespace-only notes', () => {
       vi.useFakeTimers()
       vi.setSystemTime(new Date('2023-01-15T14:30:00Z'))
       
+      // Mock Intl.DateTimeFormat to return Asia/Tokyo timezone
+      const originalDateTimeFormat = Intl.DateTimeFormat
+      vi.stubGlobal('Intl', {
+        ...Intl,
+        DateTimeFormat: vi.fn().mockImplementation(() => ({
+          resolvedOptions: () => ({ timeZone: 'Asia/Tokyo' })
+        }))
+      })
+      
       const result = buildNoteWithTimestamp('   \n  ', true)
       expect(result).toBe('2023-01-15 23:30')
+      
+      vi.unstubAllGlobals()
     })
   })
 
