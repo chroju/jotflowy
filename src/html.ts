@@ -138,6 +138,26 @@ export const html = `
             accent-color: var(--accent-color);
         }
 
+        .radio-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .radio-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+            color: var(--text-secondary);
+        }
+
+        input[type="radio"] {
+            width: 16px;
+            height: 16px;
+            accent-color: var(--accent-color);
+        }
+
         .button-row {
             display: flex;
             gap: 12px;
@@ -574,6 +594,44 @@ export const html = `
                         <i class="fas fa-key"></i> Get API Key from Workflowy
                     </button>
                 </div>
+
+                <div class="input-group">
+                    <label class="input-label">Security Settings</label>
+                    <div class="radio-group">
+                        <div class="radio-item">
+                            <input type="radio" id="expire1hour" name="expiration" value="1hour">
+                            <label for="expire1hour">1 hour (high security)</label>
+                        </div>
+                        <div class="radio-item">
+                            <input type="radio" id="expire1day" name="expiration" value="1day">
+                            <label for="expire1day">1 day</label>
+                        </div>
+                        <div class="radio-item">
+                            <input type="radio" id="expire7days" name="expiration" value="7days">
+                            <label for="expire7days">7 days</label>
+                        </div>
+                        <div class="radio-item">
+                            <input type="radio" id="expire30days" name="expiration" value="30days" checked>
+                            <label for="expire30days">30 days (recommended)</label>
+                        </div>
+                        <div class="radio-item">
+                            <input type="radio" id="expireNever" name="expiration" value="never">
+                            <label for="expireNever">Never expire (stay signed in)</label>
+                        </div>
+                        <div class="radio-item">
+                            <input type="radio" id="expireCustom" name="expiration" value="custom">
+                            <label for="expireCustom">Custom:</label>
+                            <input type="number" id="customDays" min="1" max="365" value="30" style="width: 60px; margin: 0 5px;">
+                            <span>days</span>
+                        </div>
+                    </div>
+                    <div style="font-size: 12px; color: var(--text-muted); margin-top: 8px;">
+                        <i class="fas fa-info-circle"></i> How long to keep you signed in. Shorter periods are more secure. You can always log out manually.
+                    </div>
+                    <div id="sessionStatus" style="font-size: 12px; color: var(--text-muted); margin-top: 8px; display: none;">
+                        <i class="fas fa-clock"></i> Current session expires: <span id="sessionExpiry"></span>
+                    </div>
+                </div>
                 
                 <div class="input-group">
                     <div class="checkbox-wrapper">
@@ -619,6 +677,9 @@ export const html = `
                 
                 <div class="button-row">
                     <button id="saveSettingsBtn" class="btn btn-primary">Save Settings</button>
+                    <button id="logoutBtn" class="btn btn-secondary" style="display: none;">
+                        <i class="fas fa-sign-out-alt"></i> Logout
+                    </button>
                 </div>
             </div>
         </div>
