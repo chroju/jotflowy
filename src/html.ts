@@ -1042,7 +1042,7 @@ export const html = `
                         // Use cached daily note URL
                         finalSaveLocationUrl = cachedDailyNoteUrl;
                         shouldCreateDaily = false; // Don't create new daily note
-                        console.log('Using cached daily note URL:', cachedDailyNoteUrl);
+                        console.log('Using cached daily note for today');
                         showToast('Using existing daily note for today', 'success');
                     } else {
                         console.log('No cached daily note found, will create new one');
@@ -1082,7 +1082,7 @@ export const html = `
                     if (shouldCreateDaily && responseData.dailyNoteUrl) {
                         // Cache the daily note URL for future use
                         cacheDailyNoteUrl(responseData.dailyNoteUrl);
-                        console.log('Cached new daily note URL:', responseData.dailyNoteUrl);
+                        console.log('Cached new daily note URL for today');
                     }
                     
                     // Add to history with bullet URL

@@ -67,7 +67,6 @@ async function handleSend(request: Request, ctx: ExecutionContext, corsHeaders: 
   try {
     // Parse and validate request
     const rawBody = await request.json();
-    console.log('Raw request data:', JSON.stringify(rawBody, null, 2));
     const data = requestSchema.parse(rawBody);
 
     // Process the request and return result
@@ -88,7 +87,7 @@ async function handleSend(request: Request, ctx: ExecutionContext, corsHeaders: 
     console.error('Error handling send request:', error);
     
     if (error instanceof z.ZodError) {
-      console.error('Validation errors:', JSON.stringify(error.issues, null, 2));
+      console.error('Request validation failed - invalid data format');
       return new Response(JSON.stringify({
         error: 'Invalid request data',
         details: error.issues,
@@ -170,13 +169,13 @@ async function processNoteCreation(data: z.infer<typeof requestSchema>): Promise
           // Use cached daily note URL
           saveLocationUrl = cachedUrl;
           dailyNoteUrl = cachedUrl;
-          console.log('Using cached daily note URL:', cachedUrl);
+          console.log('Using cached daily note for today');
         } else {
           // Create new daily note and cache the URL
           const dailyNote = await createDailyNote(data.apiKey, data.saveLocationUrl);
           saveLocationUrl = dailyNote.new_bullet_url;
           dailyNoteUrl = dailyNote.new_bullet_url;
-          console.log('Created new daily note:', dailyNote.new_bullet_id);
+          console.log('Created new daily note with ID:', dailyNote.new_bullet_id);
         }
       } catch (error) {
         console.error('Failed to create daily note:', error);
@@ -192,11 +191,7 @@ async function processNoteCreation(data: z.infer<typeof requestSchema>): Promise
       saveLocationUrl,
     });
 
-    console.log('Successfully created bullet:', {
-      id: result.new_bullet_id,
-      url: result.new_bullet_url,
-      title: result.new_bullet_title,
-    });
+    console.log('Successfully created bullet with ID:', result.new_bullet_id);
 
     return { 
       dailyNoteUrl,
