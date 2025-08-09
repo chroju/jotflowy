@@ -604,6 +604,7 @@ export const html = `
                     </div>
                 </div>
                 
+                
                 <hr style="border-color: var(--border-color); margin: 20px 0;">
                 
                 <div class="button-row">
@@ -1015,7 +1016,6 @@ export const html = `
             const locationIndex = parseInt(mainLocationSelect.value);
             const location = settings.locations[locationIndex];
             const includeTimestamp = timestampEnabled;
-            const globalDailyNote = settings.globalDailyNote;
             
 
             if (!title || !location || !settings.apiKey) {
@@ -1029,8 +1029,7 @@ export const html = `
 
             try {
                 let finalSaveLocationUrl = location.url;
-                // Global daily note toggle overrides location-specific setting
-                let shouldCreateDaily = globalDailyNote || location.createDaily;
+                let shouldCreateDaily = settings.globalDailyNote;
                 // Keep original value for history recording
                 const originalDailyNote = shouldCreateDaily;
                 
@@ -1220,7 +1219,6 @@ export const html = `
                     <div>
                         <div style="font-weight: 500; color: var(--text-primary);">\${location.name}</div>
                         <div style="font-size: 12px; color: var(--text-muted);">\${location.url}</div>
-                        \${location.createDaily ? '<div style="font-size: 11px; color: var(--success-color); font-weight: 500;"><i class="fas fa-calendar-alt"></i> Auto-daily note</div>' : ''}
                     </div>
                     <button onclick="removeLocation(\${index})" style="background: var(--error-color); color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer;">Remove</button>
                 </div>
