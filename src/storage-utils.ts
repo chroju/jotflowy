@@ -47,6 +47,7 @@ export interface Settings {
     bulletUrl?: string;
   }>;
   dailyNoteCache: Record<string, string>;
+  globalDailyNote?: boolean;
 }
 
 export function validateAndRecoverSettings(settings: Settings): { settings: Settings; changed: boolean } {
