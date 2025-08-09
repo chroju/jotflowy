@@ -1,10 +1,11 @@
 import { createBullet, createDailyNote, buildNoteWithTimestamp, WorkflowyAPIError, DailyNoteCache, getTodayDateKey, getCachedDailyNoteUrl, cacheDailyNoteUrl } from './workflowy';
 import { html } from './html';
 import { getTitleFromUrl, isValidHttpUrl } from './utils';
+import { CryptoUtils, getCookie, createSecureCookie } from './crypto-utils';
 import { z } from 'zod';
 
 export interface Env {
-  // No bindings needed - all data stored in LocalStorage
+  ENCRYPTION_KEY?: string; // Master key for API key encryption
 }
 
 const requestSchema = z.object({
@@ -15,9 +16,17 @@ const requestSchema = z.object({
   createDaily: z.boolean().default(false),
   includeTimestamp: z.boolean().default(false),
   expandUrls: z.boolean().default(true),
-  apiKey: z.string().min(1),
   dailyNoteCache: z.record(z.string(), z.string()).optional().default({}),
 });
+
+const authSchema = z.object({
+  apiKey: z.string().min(1),
+  expiration: z.enum(['1hour', '1day', '7days', '30days', 'never', 'custom']).default('30days'),
+  customDays: z.number().min(1).max(365).optional(),
+}).transform(data => ({
+  ...data,
+  customDays: data.customDays === null ? undefined : data.customDays
+}));
 
 export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
@@ -45,6 +54,27 @@ export default {
           },
         });
 
+      case '/api/auth':
+        if (request.method !== 'POST') {
+          return new Response('Method not allowed', { 
+            status: 405, 
+            headers: corsHeaders 
+          });
+        }
+        return handleAuth(request, env, corsHeaders);
+
+      case '/api/logout':
+        if (request.method !== 'POST') {
+          return new Response('Method not allowed', { 
+            status: 405, 
+            headers: corsHeaders 
+          });
+        }
+        return handleLogout(request, corsHeaders);
+
+      case '/api/auth/check':
+        return handleAuthCheck(request, env, corsHeaders);
+
       case '/send':
         if (request.method !== 'POST') {
           return new Response('Method not allowed', { 
@@ -52,7 +82,7 @@ export default {
             headers: corsHeaders 
           });
         }
-        return handleSend(request, ctx, corsHeaders);
+        return handleSend(request, env, corsHeaders);
 
       default:
         return new Response('Not found', { 
@@ -63,15 +93,188 @@ export default {
   },
 };
 
-async function handleSend(request: Request, ctx: ExecutionContext, corsHeaders: Record<string, string>): Promise<Response> {
+async function handleAuth(request: Request, env: Env, corsHeaders: Record<string, string>): Promise<Response> {
   try {
+    const masterKey = env.ENCRYPTION_KEY || 'default-key-change-in-production';
+    const rawData = await request.json();
+    const data = authSchema.parse(rawData);
+
+    // Test API key by making a simple request to Workflowy
+    try {
+      const testResponse = await fetch('https://workflowy.com/api/me/', {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${data.apiKey}`,
+        },
+      });
+
+      if (!testResponse.ok) {
+        return new Response(JSON.stringify({
+          error: 'Invalid API key',
+        }), {
+          status: 401,
+          headers: {
+            'Content-Type': 'application/json',
+            ...corsHeaders,
+          },
+        });
+      }
+    } catch (error) {
+      return new Response(JSON.stringify({
+        error: 'Failed to verify API key',
+      }), {
+        status: 400,
+        headers: {
+          'Content-Type': 'application/json',
+          ...corsHeaders,
+        },
+      });
+    }
+
+    // Calculate expiration time
+    const expirationSeconds = getExpirationSeconds(data.expiration, data.customDays);
+    const expirationDate = new Date(Date.now() + expirationSeconds * 1000);
+
+    // Encrypt API key
+    const encryptedApiKey = await CryptoUtils.encrypt(data.apiKey, masterKey);
+    
+    // Create secure cookie
+    const cookieHeader = createSecureCookie('auth', encryptedApiKey, expirationSeconds);
+
+    return new Response(JSON.stringify({
+      message: 'Authentication successful',
+      expiresAt: expirationDate.toISOString(),
+    }), {
+      status: 200,
+      headers: {
+        'Content-Type': 'application/json',
+        'Set-Cookie': cookieHeader,
+        ...corsHeaders,
+      },
+    });
+  } catch (error) {
+    console.error('Auth error:', error);
+    return new Response(JSON.stringify({
+      error: 'Authentication failed',
+    }), {
+      status: 400,
+      headers: {
+        'Content-Type': 'application/json',
+        ...corsHeaders,
+      },
+    });
+  }
+}
+
+async function handleLogout(request: Request, corsHeaders: Record<string, string>): Promise<Response> {
+  const cookieHeader = createSecureCookie('auth', '', 0); // Expire immediately
+
+  return new Response(JSON.stringify({
+    message: 'Logged out successfully',
+  }), {
+    status: 200,
+    headers: {
+      'Content-Type': 'application/json',
+      'Set-Cookie': cookieHeader,
+      ...corsHeaders,
+    },
+  });
+}
+
+async function handleAuthCheck(request: Request, env: Env, corsHeaders: Record<string, string>): Promise<Response> {
+  try {
+    const masterKey = env.ENCRYPTION_KEY || 'default-key-change-in-production';
+    const encryptedApiKey = getCookie(request, 'auth');
+    
+    if (!encryptedApiKey) {
+      return new Response(JSON.stringify({ authenticated: false }), {
+        status: 200,
+        headers: {
+          'Content-Type': 'application/json',
+          ...corsHeaders,
+        },
+      });
+    }
+
+    // Try to decrypt to verify validity
+    await CryptoUtils.decrypt(encryptedApiKey, masterKey);
+    
+    return new Response(JSON.stringify({ authenticated: true }), {
+      status: 200,
+      headers: {
+        'Content-Type': 'application/json',
+        ...corsHeaders,
+      },
+    });
+  } catch (error) {
+    // Cookie is invalid or expired
+    const cookieHeader = createSecureCookie('auth', '', 0); // Clear invalid cookie
+    
+    return new Response(JSON.stringify({ authenticated: false }), {
+      status: 200,
+      headers: {
+        'Content-Type': 'application/json',
+        'Set-Cookie': cookieHeader,
+        ...corsHeaders,
+      },
+    });
+  }
+}
+
+function getExpirationSeconds(expiration: string, customDays?: number | null): number {
+  switch (expiration) {
+    case '1hour': return 3600;
+    case '1day': return 86400;
+    case '7days': return 604800;
+    case '30days': return 2592000;
+    case 'never': return 31536000 * 10; // 10 years
+    case 'custom': return (customDays || 30) * 86400;
+    default: return 2592000; // 30 days default
+  }
+}
+
+async function handleSend(request: Request, env: Env, corsHeaders: Record<string, string>): Promise<Response> {
+  try {
+    // Get API key from cookie
+    const masterKey = env.ENCRYPTION_KEY || 'default-key-change-in-production';
+    const encryptedApiKey = getCookie(request, 'auth');
+    
+    if (!encryptedApiKey) {
+      return new Response(JSON.stringify({
+        error: 'Authentication required',
+      }), {
+        status: 401,
+        headers: {
+          'Content-Type': 'application/json',
+          ...corsHeaders,
+        },
+      });
+    }
+
+    let apiKey: string;
+    try {
+      apiKey = await CryptoUtils.decrypt(encryptedApiKey, masterKey);
+    } catch (error) {
+      // Invalid or expired cookie
+      const cookieHeader = createSecureCookie('auth', '', 0);
+      return new Response(JSON.stringify({
+        error: 'Authentication expired',
+      }), {
+        status: 401,
+        headers: {
+          'Content-Type': 'application/json',
+          'Set-Cookie': cookieHeader,
+          ...corsHeaders,
+        },
+      });
+    }
+
     // Parse and validate request
     const rawBody = await request.json();
-    console.log('Raw request data:', JSON.stringify(rawBody, null, 2));
     const data = requestSchema.parse(rawBody);
 
-    // Process the request and return result
-    const result = await processNoteCreation(data);
+    // Process the request with decrypted API key
+    const result = await processNoteCreation({ ...data, apiKey });
 
     return new Response(JSON.stringify({
       message: 'Request accepted',
@@ -88,7 +291,7 @@ async function handleSend(request: Request, ctx: ExecutionContext, corsHeaders: 
     console.error('Error handling send request:', error);
     
     if (error instanceof z.ZodError) {
-      console.error('Validation errors:', JSON.stringify(error.issues, null, 2));
+      console.error('Request validation failed - invalid data format');
       return new Response(JSON.stringify({
         error: 'Invalid request data',
         details: error.issues,
@@ -136,7 +339,7 @@ async function handleSend(request: Request, ctx: ExecutionContext, corsHeaders: 
   }
 }
 
-async function processNoteCreation(data: z.infer<typeof requestSchema>): Promise<{ dailyNoteUrl?: string; new_bullet_url?: string }> {
+async function processNoteCreation(data: z.infer<typeof requestSchema> & { apiKey: string }): Promise<{ dailyNoteUrl?: string; new_bullet_url?: string }> {
   try {
     let title = data.title;
     let saveLocationUrl = data.saveLocationUrl;
@@ -170,13 +373,13 @@ async function processNoteCreation(data: z.infer<typeof requestSchema>): Promise
           // Use cached daily note URL
           saveLocationUrl = cachedUrl;
           dailyNoteUrl = cachedUrl;
-          console.log('Using cached daily note URL:', cachedUrl);
+          console.log('Using cached daily note for today');
         } else {
           // Create new daily note and cache the URL
           const dailyNote = await createDailyNote(data.apiKey, data.saveLocationUrl);
           saveLocationUrl = dailyNote.new_bullet_url;
           dailyNoteUrl = dailyNote.new_bullet_url;
-          console.log('Created new daily note:', dailyNote.new_bullet_id);
+          console.log('Created new daily note with ID:', dailyNote.new_bullet_id);
         }
       } catch (error) {
         console.error('Failed to create daily note:', error);
@@ -192,11 +395,7 @@ async function processNoteCreation(data: z.infer<typeof requestSchema>): Promise
       saveLocationUrl,
     });
 
-    console.log('Successfully created bullet:', {
-      id: result.new_bullet_id,
-      url: result.new_bullet_url,
-      title: result.new_bullet_title,
-    });
+    console.log('Successfully created bullet with ID:', result.new_bullet_id);
 
     return { 
       dailyNoteUrl,
