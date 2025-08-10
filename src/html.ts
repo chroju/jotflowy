@@ -654,7 +654,6 @@ export const html = `
                 </div>
                 
                 <div class="button-row">
-                    <button id="saveSettingsBtn" class="btn btn-primary">Save Settings</button>
                     <button id="logoutBtn" class="btn btn-secondary" style="display: none;">
                         <i class="fas fa-sign-out-alt"></i> Logout
                     </button>
@@ -1080,32 +1079,41 @@ export const html = `
             // Modal controls
             bindModalControls();
 
-            // Settings
-            document.getElementById('saveSettingsBtn').addEventListener('click', async function() {
-                const apiKey = document.getElementById('apiKeyInput').value.trim();
-                urlExpansionEnabled = document.getElementById('urlExpansionCheckbox').checked;
-                timestampEnabled = document.getElementById('timestampCheckbox').checked;
-                settings.globalDailyNote = document.getElementById('dailyNoteCheckbox').checked;
-                
-                // Get security settings
-                const selectedExpiration = document.getElementById('expirationSelect').value;
-                const customDays = null; // No longer needed since we simplified the options
-                
-                // Save non-API-key settings first
+            // Auto-save settings for each input
+            document.getElementById('urlExpansionCheckbox').addEventListener('change', function() {
+                urlExpansionEnabled = this.checked;
                 safeSetItem('jotflowy_urlExpansionEnabled', urlExpansionEnabled.toString());
+                updateMainUI();
+                showToast('URL expansion setting saved', 'success');
+            });
+            
+            document.getElementById('timestampCheckbox').addEventListener('change', function() {
+                timestampEnabled = this.checked;
                 safeSetItem('jotflowy_timestampEnabled', timestampEnabled.toString());
+                updateMainUI();
+                showToast('Timestamp setting saved', 'success');
+            });
+            
+            document.getElementById('dailyNoteCheckbox').addEventListener('change', function() {
+                settings.globalDailyNote = this.checked;
                 saveSettings();
-                
-                // Handle API key authentication if provided
-                if (apiKey) {
-                    const authResult = await authenticateUser(apiKey, selectedExpiration, customDays);
+                updateMainUI();
+                showToast('Daily note setting saved', 'success');
+            });
+
+            // API key authentication (manual save when user enters/changes API key)
+            document.getElementById('apiKeyInput').addEventListener('blur', async function() {
+                const apiKey = this.value.trim();
+                if (apiKey && apiKey !== settings.apiKey) {
+                    const selectedExpiration = document.getElementById('expirationSelect').value;
+                    const authResult = await authenticateUser(apiKey, selectedExpiration, null);
                     if (authResult.success) {
-                        settings.apiKey = apiKey; // Keep in memory for UI updates
+                        settings.apiKey = apiKey;
                         updateAuthenticationUI(true);
                         updateMainUI();
-                        showToast('Settings saved and authenticated successfully!', 'success');
+                        updateSubmitButtonState();
+                        showToast('API key authenticated successfully!', 'success');
                         
-                        // Show session expiry
                         if (authResult.expiresAt) {
                             const expiryDate = new Date(authResult.expiresAt);
                             document.getElementById('sessionExpiry').textContent = 
@@ -1116,12 +1124,12 @@ export const html = `
                         showToast('Authentication failed: ' + authResult.error, 'error');
                         updateAuthenticationUI(false);
                     }
-                } else {
-                    updateMainUI();
-                    showToast('Settings saved!', 'success');
                 }
-                updateSubmitButtonState();
-                closeModal('settingsModal');
+            });
+
+            // Security settings change
+            document.getElementById('expirationSelect').addEventListener('change', function() {
+                showToast('Security setting saved', 'success');
             });
 
             // Logout button
