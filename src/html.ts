@@ -578,7 +578,19 @@ export const html = `
                 </div>
 
                 <div class="input-group">
-                    <label class="input-label">Step 2: Default Save Location</label>
+                    <label class="input-label">Step 2: Session Duration</label>
+                    <select id="setupExpirationSelect" style="width: 100%; padding: 8px; border: 1px solid var(--border-color); border-radius: 4px; background: var(--bg-secondary); color: var(--text-primary);">
+                        <option value="1hour">1 hour (high security)</option>
+                        <option value="30days" selected>30 days (recommended)</option>
+                        <option value="never">Never expire (stay signed in)</option>
+                    </select>
+                    <div style="font-size: 12px; color: var(--text-muted); margin-top: 8px;">
+                        <i class="fas fa-info-circle"></i> How long to keep you signed in. You can change this by clearing and re-entering your API key.
+                    </div>
+                </div>
+
+                <div class="input-group">
+                    <label class="input-label">Step 3: Default Save Location</label>
                     <input type="text" id="setupLocationNameInput" placeholder="Location name (e.g., Daily Notes, Inbox)">
                     <input type="url" id="setupLocationUrlInput" placeholder="https://workflowy.com/#/your-location">
                     <div style="font-size: 12px; color: var(--text-muted); margin-top: 8px;">
@@ -622,16 +634,8 @@ export const html = `
                     </div>
                 </div>
 
-                <div class="input-group">
-                    <label class="input-label">How long to keep you signed in</label>
-                    <select id="expirationSelect" style="width: 100%; padding: 8px; border: 1px solid var(--border-color); border-radius: 4px; background: var(--bg-primary); color: var(--text-primary);">
-                        <option value="1hour">1 hour (high security)</option>
-                        <option value="30days" selected>30 days (recommended)</option>
-                        <option value="never">Never expire (stay signed in)</option>
-                    </select>
-                    <div id="sessionStatus" style="font-size: 12px; color: var(--text-muted); margin-top: 8px; display: none;">
-                        <i class="fas fa-clock"></i> Current session expires: <span id="sessionExpiry"></span>
-                    </div>
+                <div id="sessionStatus" style="font-size: 12px; color: var(--text-muted); margin-top: 8px; display: none;">
+                    <i class="fas fa-clock"></i> Current session expires: <span id="sessionExpiry"></span>
                 </div>
                 
                 <div class="input-group">
@@ -720,6 +724,45 @@ export const html = `
         </div>
     </div>
     
+    <!-- API Key Authentication Modal -->
+    <div id="authModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">API Key Authentication</h2>
+                <button class="close" id="authClose">×</button>
+            </div>
+            <div class="modal-body">
+                <div class="input-group">
+                    <label class="input-label">Workflowy API Key</label>
+                    <div class="password-input-wrapper">
+                        <input type="password" id="authApiKeyInput" placeholder="Enter your Workflowy API key">
+                        <button type="button" class="password-toggle" onclick="togglePasswordVisibility('authApiKeyInput', this)"><i class="fas fa-eye"></i></button>
+                    </div>
+                    <button id="authGetApiKeyBtn" class="btn btn-link">
+                        <i class="fas fa-key"></i> Get API Key from Workflowy
+                    </button>
+                </div>
+
+                <div class="input-group">
+                    <label class="input-label">Session Duration</label>
+                    <select id="authExpirationSelect" style="width: 100%; padding: 8px; border: 1px solid var(--border-color); border-radius: 4px; background: var(--bg-secondary); color: var(--text-primary);">
+                        <option value="1hour">1 hour (high security)</option>
+                        <option value="30days" selected>30 days (recommended)</option>
+                        <option value="never">Never expire (stay signed in)</option>
+                    </select>
+                    <div style="font-size: 12px; color: var(--text-muted); margin-top: 8px;">
+                        <i class="fas fa-info-circle"></i> This setting cannot be changed later without re-authentication.
+                    </div>
+                </div>
+
+                <div class="button-row">
+                    <button id="authenticateBtn" class="btn btn-primary" disabled>Authenticate</button>
+                    <button id="authCancelBtn" class="btn btn-secondary">Cancel</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Help Modal -->
     <div id="helpModal" class="modal">
         <div class="modal-content">
@@ -1121,35 +1164,13 @@ export const html = `
                 showToast('Daily note setting saved', 'success');
             });
 
-            // API key authentication (manual save when user enters/changes API key)
-            document.getElementById('apiKeyInput').addEventListener('blur', async function() {
-                const apiKey = this.value.trim();
-                if (apiKey && apiKey !== settings.apiKey) {
-                    const selectedExpiration = document.getElementById('expirationSelect').value;
-                    const authResult = await authenticateUser(apiKey, selectedExpiration, null);
-                    if (authResult.success) {
-                        settings.apiKey = apiKey;
-                        updateAuthenticationUI(true);
-                        updateMainUI();
-                        updateSubmitButtonState();
-                        showToast('API key authenticated successfully!', 'success');
-                        
-                        if (authResult.expiresAt) {
-                            const expiryDate = new Date(authResult.expiresAt);
-                            document.getElementById('sessionExpiry').textContent = 
-                                expiryDate.toLocaleString();
-                            document.getElementById('sessionStatus').style.display = 'block';
-                        }
-                    } else {
-                        showToast('Authentication failed: ' + authResult.error, 'error');
-                        updateAuthenticationUI(false);
-                    }
+            // API key authentication - show auth modal when user clicks input
+            document.getElementById('apiKeyInput').addEventListener('focus', function() {
+                if (!settings.apiKey) {
+                    // Only show auth modal if not already authenticated
+                    this.blur(); // Remove focus from the input
+                    openModal('authModal');
                 }
-            });
-
-            // Security settings change
-            document.getElementById('expirationSelect').addEventListener('change', function() {
-                showToast('Security setting saved', 'success');
             });
 
 
@@ -1164,7 +1185,7 @@ export const html = `
 
             // Clear API key button
             document.getElementById('clearApiKeyBtn').addEventListener('click', async function() {
-                if (confirm('Are you sure you want to clear your API key? You will need to re-authenticate.')) {
+                if (confirm('Are you sure you want to clear your API key? You will need to re-authenticate with a new session duration.')) {
                     try {
                         // Call logout API to clear the cookie
                         await fetch('/api/logout', {
@@ -1181,8 +1202,13 @@ export const html = `
                         // Update UI to unauthenticated state
                         updateAuthenticationUI(false);
                         updateMainUI();
+                        updateSubmitButtonState();
                         
-                        showToast('API key cleared successfully', 'success');
+                        // Close settings modal and show auth modal
+                        closeModal('settingsModal');
+                        setTimeout(() => openModal('authModal'), 300);
+                        
+                        showToast('API key cleared - please re-authenticate', 'success');
                     } catch (error) {
                         console.error('Error clearing API key:', error);
                         showToast('Failed to clear API key', 'error');
@@ -1199,6 +1225,10 @@ export const html = `
             // Settings modal
             document.getElementById('settingsBtn').addEventListener('click', () => openModal('settingsModal'));
             document.getElementById('settingsClose').addEventListener('click', () => closeModal('settingsModal'));
+
+            // Auth modal
+            document.getElementById('authClose').addEventListener('click', () => closeModal('authModal'));
+            document.getElementById('authCancelBtn').addEventListener('click', () => closeModal('authModal'));
 
             // Help modal
             document.getElementById('helpBtn').addEventListener('click', () => openModal('helpModal'));
@@ -1218,12 +1248,80 @@ export const html = `
             });
             document.getElementById('historyClose').addEventListener('click', () => closeModal('historyModal'));
 
+            // Auth modal controls
+            bindAuthControls();
+
             // Close modal when clicking outside
             window.addEventListener('click', function(event) {
                 if (event.target.classList.contains('modal')) {
                     event.target.style.display = 'none';
                 }
             });
+        }
+
+        function bindAuthControls() {
+            // Auth modal API key button
+            document.getElementById('authGetApiKeyBtn').addEventListener('click', function() {
+                window.open('https://workflowy.com/api-key', '_blank');
+                showToast('Copy your API key from Workflowy and paste it here', 'success');
+            });
+
+            // Auth modal form validation
+            const authApiKeyInput = document.getElementById('authApiKeyInput');
+            authApiKeyInput.addEventListener('input', updateAuthButtonState);
+
+            // Authenticate button
+            document.getElementById('authenticateBtn').addEventListener('click', async function() {
+                const apiKey = document.getElementById('authApiKeyInput').value.trim();
+                const selectedExpiration = document.getElementById('authExpirationSelect').value;
+                
+                if (!apiKey) {
+                    showToast('Please enter your API key', 'error');
+                    return;
+                }
+
+                // Disable button during authentication
+                this.disabled = true;
+                this.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Authenticating...';
+
+                try {
+                    const authResult = await authenticateUser(apiKey, selectedExpiration, null);
+                    if (authResult.success) {
+                        settings.apiKey = apiKey;
+                        updateAuthenticationUI(true);
+                        updateMainUI();
+                        updateSubmitButtonState();
+                        showToast('API key authenticated successfully!', 'success');
+                        
+                        if (authResult.expiresAt) {
+                            const expiryDate = new Date(authResult.expiresAt);
+                            document.getElementById('sessionExpiry').textContent = 
+                                expiryDate.toLocaleString();
+                            document.getElementById('sessionStatus').style.display = 'block';
+                        }
+
+                        // Clear the modal and close
+                        document.getElementById('authApiKeyInput').value = '';
+                        closeModal('authModal');
+                    } else {
+                        showToast('Authentication failed: ' + authResult.error, 'error');
+                        updateAuthenticationUI(false);
+                    }
+                } catch (error) {
+                    showToast('Authentication error: ' + error.message, 'error');
+                } finally {
+                    // Reset button
+                    this.disabled = false;
+                    this.innerHTML = 'Authenticate';
+                    updateAuthButtonState();
+                }
+            });
+        }
+
+        function updateAuthButtonState() {
+            const apiKey = document.getElementById('authApiKeyInput').value.trim();
+            const isValid = apiKey.length > 0;
+            document.getElementById('authenticateBtn').disabled = !isValid;
         }
 
         async function handleSubmit() {
@@ -1502,86 +1600,293 @@ export const html = `
 
         function showSetupGuide() {
             if (!settings.apiKey || settings.locations.length === 0) {
+                updateSetupModalContent();
                 openModal('setupModal');
                 updateSetupButtonState();
             }
         }
 
+        function updateSetupModalContent() {
+            const hasApiKey = !!settings.apiKey;
+            const hasLocations = settings.locations.length > 0;
+            
+            const modalBody = document.querySelector('#setupModal .modal-body');
+            const modalTitle = document.querySelector('#setupModal .modal-title');
+            
+            let content = '';
+            let title = '';
+            
+            if (!hasApiKey && !hasLocations) {
+                // Full setup needed
+                title = 'Welcome to Jotflowy';
+                content = [
+                    '<p style="color: var(--text-secondary); margin-bottom: 20px;">',
+                    'Welcome! Jotflowy offers smart URL title extraction, intelligent daily note caching, and secure localStorage handling. Let\\'s set up your API key, session duration, and first save location to get started.',
+                    '</p>',
+                    '<div class="input-group">',
+                    '<label class="input-label">Step 1: Workflowy API Key</label>',
+                    '<div class="password-input-wrapper">',
+                    '<input type="password" id="setupApiKeyInput" placeholder="Enter your Workflowy API key">',
+                    '<button type="button" class="password-toggle" onclick="togglePasswordVisibility(\\'setupApiKeyInput\\', this)"><i class="fas fa-eye"></i></button>',
+                    '</div>',
+                    '<button id="setupGetApiKeyBtn" class="btn btn-link">',
+                    '<i class="fas fa-key"></i> Get API Key from Workflowy',
+                    '</button>',
+                    '</div>',
+                    '<div class="input-group">',
+                    '<label class="input-label">Step 2: Session Duration</label>',
+                    '<select id="setupExpirationSelect" style="width: 100%; padding: 8px; border: 1px solid var(--border-color); border-radius: 4px; background: var(--bg-secondary); color: var(--text-primary);">',
+                    '<option value="1hour">1 hour (high security)</option>',
+                    '<option value="30days" selected>30 days (recommended)</option>',
+                    '<option value="never">Never expire (stay signed in)</option>',
+                    '</select>',
+                    '<div style="font-size: 12px; color: var(--text-muted); margin-top: 8px;">',
+                    '<i class="fas fa-info-circle"></i> How long to keep you signed in. You can change this by clearing and re-entering your API key.',
+                    '</div>',
+                    '</div>',
+                    '<div class="input-group">',
+                    '<label class="input-label">Step 3: Default Save Location</label>',
+                    '<input type="text" id="setupLocationNameInput" placeholder="Location name (e.g., Daily Notes, Inbox)">',
+                    '<input type="url" id="setupLocationUrlInput" placeholder="https://workflowy.com/#/your-location">',
+                    '<div style="font-size: 12px; color: var(--text-muted); margin-top: 8px;">',
+                    '<i class="fas fa-lightbulb"></i> Tip: Open Workflowy, navigate to where you want to save notes, and copy the URL from your browser.',
+                    '</div>',
+                    '</div>',
+                    '<div class="button-row">',
+                    '<button id="completeSetupBtn" class="btn btn-primary" disabled>Complete Setup</button>',
+                    '</div>'
+                ].join('');
+            } else if (!hasApiKey && hasLocations) {
+                // Only API key needed
+                title = 'API Key Required';
+                content = [
+                    '<p style="color: var(--text-secondary); margin-bottom: 20px;">',
+                    'Your save locations are configured, but you need to authenticate with your Workflowy API key to start using the app.',
+                    '</p>',
+                    '<div class="input-group">',
+                    '<label class="input-label">Step 1: Workflowy API Key</label>',
+                    '<div class="password-input-wrapper">',
+                    '<input type="password" id="setupApiKeyInput" placeholder="Enter your Workflowy API key">',
+                    '<button type="button" class="password-toggle" onclick="togglePasswordVisibility(\\'setupApiKeyInput\\', this)"><i class="fas fa-eye"></i></button>',
+                    '</div>',
+                    '<button id="setupGetApiKeyBtn" class="btn btn-link">',
+                    '<i class="fas fa-key"></i> Get API Key from Workflowy',
+                    '</button>',
+                    '</div>',
+                    '<div class="input-group">',
+                    '<label class="input-label">Step 2: Session Duration</label>',
+                    '<select id="setupExpirationSelect" style="width: 100%; padding: 8px; border: 1px solid var(--border-color); border-radius: 4px; background: var(--bg-secondary); color: var(--text-primary);">',
+                    '<option value="1hour">1 hour (high security)</option>',
+                    '<option value="30days" selected>30 days (recommended)</option>',
+                    '<option value="never">Never expire (stay signed in)</option>',
+                    '</select>',
+                    '<div style="font-size: 12px; color: var(--text-muted); margin-top: 8px;">',
+                    '<i class="fas fa-info-circle"></i> How long to keep you signed in.',
+                    '</div>',
+                    '</div>',
+                    '<div class="button-row">',
+                    '<button id="completeSetupBtn" class="btn btn-primary" disabled>Authenticate</button>',
+                    '</div>'
+                ].join('');
+            } else if (hasApiKey && !hasLocations) {
+                // Only location needed
+                title = 'Save Location Required';
+                content = [
+                    '<p style="color: var(--text-secondary); margin-bottom: 20px;">',
+                    'You\\'re authenticated, but you need to configure at least one save location to start using the app.',
+                    '</p>',
+                    '<div class="input-group">',
+                    '<label class="input-label">Step 1: Default Save Location</label>',
+                    '<input type="text" id="setupLocationNameInput" placeholder="Location name (e.g., Daily Notes, Inbox)">',
+                    '<input type="url" id="setupLocationUrlInput" placeholder="https://workflowy.com/#/your-location">',
+                    '<div style="font-size: 12px; color: var(--text-muted); margin-top: 8px;">',
+                    '<i class="fas fa-lightbulb"></i> Tip: Open Workflowy, navigate to where you want to save notes, and copy the URL from your browser.',
+                    '</div>',
+                    '</div>',
+                    '<div class="button-row">',
+                    '<button id="completeSetupBtn" class="btn btn-primary" disabled>Add Location</button>',
+                    '</div>'
+                ].join('');
+            }
+            
+            modalTitle.textContent = title;
+            modalBody.innerHTML = content;
+            
+            // Re-bind event listeners after content update
+            bindSetupControlsAfterUpdate();
+        }
+
         function bindSetupControls() {
+            // This is called once during initialization for the static HTML
+            // The actual binding happens in bindSetupControlsAfterUpdate
+        }
+
+        function bindSetupControlsAfterUpdate() {
             // Setup API key button
-            document.getElementById('setupGetApiKeyBtn').addEventListener('click', function() {
-                window.open('https://workflowy.com/api-key', '_blank');
-                showToast('Copy your API key from Workflowy and paste it here', 'success');
-            });
+            const setupGetApiKeyBtn = document.getElementById('setupGetApiKeyBtn');
+            if (setupGetApiKeyBtn) {
+                setupGetApiKeyBtn.addEventListener('click', function() {
+                    window.open('https://workflowy.com/api-key', '_blank');
+                    showToast('Copy your API key from Workflowy and paste it here', 'success');
+                });
+            }
 
             // Setup form validation
             const setupApiKeyInput = document.getElementById('setupApiKeyInput');
             const setupLocationNameInput = document.getElementById('setupLocationNameInput');
             const setupLocationUrlInput = document.getElementById('setupLocationUrlInput');
             
-            setupApiKeyInput.addEventListener('input', updateSetupButtonState);
-            setupLocationNameInput.addEventListener('input', updateSetupButtonState);
-            setupLocationUrlInput.addEventListener('input', updateSetupButtonState);
+            if (setupApiKeyInput) {
+                setupApiKeyInput.addEventListener('input', updateSetupButtonState);
+            }
+            if (setupLocationNameInput) {
+                setupLocationNameInput.addEventListener('input', updateSetupButtonState);
+            }
+            if (setupLocationUrlInput) {
+                setupLocationUrlInput.addEventListener('input', updateSetupButtonState);
+            }
 
             // Complete setup button
-            document.getElementById('completeSetupBtn').addEventListener('click', completeSetup);
+            const completeSetupBtn = document.getElementById('completeSetupBtn');
+            if (completeSetupBtn) {
+                completeSetupBtn.addEventListener('click', completeSetup);
+            }
         }
 
         function updateSetupButtonState() {
-            const apiKey = document.getElementById('setupApiKeyInput').value.trim();
-            const locationName = document.getElementById('setupLocationNameInput').value.trim();
-            const locationUrl = document.getElementById('setupLocationUrlInput').value.trim();
+            const hasApiKey = !!settings.apiKey;
+            const hasLocations = settings.locations.length > 0;
             
-            const isValid = apiKey.length > 0 && 
-                          locationName.length > 0 && 
-                          locationUrl.length > 0 && 
-                          locationUrl.includes('workflowy.com/#/');
+            const apiKeyInput = document.getElementById('setupApiKeyInput');
+            const locationNameInput = document.getElementById('setupLocationNameInput');
+            const locationUrlInput = document.getElementById('setupLocationUrlInput');
+            const completeBtn = document.getElementById('completeSetupBtn');
             
-            document.getElementById('completeSetupBtn').disabled = !isValid;
+            if (!completeBtn) return;
+            
+            let isValid = false;
+            
+            if (!hasApiKey && !hasLocations) {
+                // Full setup: need API key + locations
+                const apiKey = apiKeyInput ? apiKeyInput.value.trim() : '';
+                const locationName = locationNameInput ? locationNameInput.value.trim() : '';
+                const locationUrl = locationUrlInput ? locationUrlInput.value.trim() : '';
+                
+                isValid = apiKey.length > 0 && 
+                         locationName.length > 0 && 
+                         locationUrl.length > 0 && 
+                         locationUrl.includes('workflowy.com/#/');
+            } else if (!hasApiKey && hasLocations) {
+                // Only API key needed
+                const apiKey = apiKeyInput ? apiKeyInput.value.trim() : '';
+                isValid = apiKey.length > 0;
+            } else if (hasApiKey && !hasLocations) {
+                // Only locations needed
+                const locationName = locationNameInput ? locationNameInput.value.trim() : '';
+                const locationUrl = locationUrlInput ? locationUrlInput.value.trim() : '';
+                
+                isValid = locationName.length > 0 && 
+                         locationUrl.length > 0 && 
+                         locationUrl.includes('workflowy.com/#/');
+            }
+            
+            completeBtn.disabled = !isValid;
         }
 
         async function completeSetup() {
-            const apiKey = document.getElementById('setupApiKeyInput').value.trim();
-            const locationName = document.getElementById('setupLocationNameInput').value.trim();
-            const locationUrl = document.getElementById('setupLocationUrlInput').value.trim();
+            const hasApiKey = !!settings.apiKey;
+            const hasLocations = settings.locations.length > 0;
             
+            const apiKeyInput = document.getElementById('setupApiKeyInput');
+            const expirationSelect = document.getElementById('setupExpirationSelect');
+            const locationNameInput = document.getElementById('setupLocationNameInput');
+            const locationUrlInput = document.getElementById('setupLocationUrlInput');
+            
+            try {
+                if (!hasApiKey && !hasLocations) {
+                    // Full setup: authenticate + add location
+                    const apiKey = apiKeyInput.value.trim();
+                    const selectedExpiration = expirationSelect.value;
+                    const locationName = locationNameInput.value.trim();
+                    const locationUrl = locationUrlInput.value.trim();
 
-            // Authenticate API key first
-            const authResult = await authenticateUser(apiKey, '30days', null); // Default to 30 days
-            if (!authResult.success) {
-                showToast('Authentication failed: ' + authResult.error, 'error');
-                return;
+                    // Authenticate API key first
+                    const authResult = await authenticateUser(apiKey, selectedExpiration, null);
+                    if (!authResult.success) {
+                        showToast('Authentication failed: ' + authResult.error, 'error');
+                        return;
+                    }
+
+                    // Save API key status for UI
+                    settings.apiKey = apiKey;
+
+                    // Add initial location
+                    settings.locations = [{
+                        name: locationName,
+                        url: locationUrl,
+                        createDaily: false
+                    }];
+                    
+                    // Auto-select the initial location
+                    currentLocationIndex = '0';
+                    safeSetItem('jotflowy_selectedLocation', currentLocationIndex);
+                    
+                    updateAuthenticationUI(true);
+                    showToast('Setup completed! You can now start using Jotflowy.', 'success');
+                    
+                } else if (!hasApiKey && hasLocations) {
+                    // Authenticate only
+                    const apiKey = apiKeyInput.value.trim();
+                    const selectedExpiration = expirationSelect.value;
+
+                    const authResult = await authenticateUser(apiKey, selectedExpiration, null);
+                    if (!authResult.success) {
+                        showToast('Authentication failed: ' + authResult.error, 'error');
+                        return;
+                    }
+
+                    settings.apiKey = apiKey;
+                    updateAuthenticationUI(true);
+                    showToast('Authentication completed! You can now start using Jotflowy.', 'success');
+                    
+                } else if (hasApiKey && !hasLocations) {
+                    // Add location only
+                    const locationName = locationNameInput.value.trim();
+                    const locationUrl = locationUrlInput.value.trim();
+
+                    settings.locations.push({
+                        name: locationName,
+                        url: locationUrl,
+                        createDaily: false
+                    });
+                    
+                    // Auto-select the new location
+                    currentLocationIndex = (settings.locations.length - 1).toString();
+                    safeSetItem('jotflowy_selectedLocation', currentLocationIndex);
+                    
+                    showToast('Location added! You can now start using Jotflowy.', 'success');
+                }
+
+                // Common setup completion steps
+                timestampEnabled = true;
+                safeSetItem('jotflowy_timestampEnabled', 'true');
+                urlExpansionEnabled = true;
+                safeSetItem('jotflowy_urlExpansionEnabled', 'true');
+
+                saveSettings();
+                updateMainUI();
+                updateSaveLocationSelect();
+                updateSubmitButtonState();
+
+                closeModal('setupModal');
+                
+                // Auto-focus on text area after setup
+                setTimeout(() => textArea.focus(), 200);
+                
+            } catch (error) {
+                console.error('Setup error:', error);
+                showToast('Setup failed. Please try again.', 'error');
             }
-
-            // Save API key status for UI
-            settings.apiKey = apiKey;
-
-            // Add initial location
-            settings.locations = [{
-                name: locationName,
-                url: locationUrl,
-                createDaily: false  // No longer used, always false
-            }];
-            
-            // Auto-select the initial location
-            currentLocationIndex = '0';
-            safeSetItem('jotflowy_selectedLocation', currentLocationIndex);
-            timestampEnabled = true;
-            safeSetItem('jotflowy_timestampEnabled', 'true');
-            urlExpansionEnabled = true;
-            safeSetItem('jotflowy_urlExpansionEnabled', 'true');
-
-            saveSettings();
-            updateMainUI();
-            updateSaveLocationSelect();
-            updateSubmitButtonState();
-            updateAuthenticationUI(true); // Mark as authenticated
-
-            closeModal('setupModal');
-            showToast('Setup completed! You can now start using Jotflowy.', 'success');
-            
-            // Auto-focus on text area after setup
-            setTimeout(() => textArea.focus(), 200);
         }
 
         function getTodayDateKey() {
