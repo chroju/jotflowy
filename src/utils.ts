@@ -7,8 +7,65 @@ export function isValidHttpUrl(string: string): boolean {
   }
 }
 
+function isPrivateIP(hostname: string): boolean {
+  // Check for IPv4 private addresses
+  const ipv4Regex = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/;
+  const match = hostname.match(ipv4Regex);
+  
+  if (match) {
+    const [, a, b, c, d] = match.map(Number);
+    return (
+      // 10.0.0.0/8
+      a === 10 ||
+      // 172.16.0.0/12
+      (a === 172 && b >= 16 && b <= 31) ||
+      // 192.168.0.0/16
+      (a === 192 && b === 168) ||
+      // 127.0.0.0/8 (localhost)
+      a === 127 ||
+      // 169.254.0.0/16 (link-local)
+      (a === 169 && b === 254)
+    );
+  }
+  
+  // Check for localhost and common private hostnames
+  const privateDomains = ['localhost', '127.0.0.1', '::1', '0.0.0.0'];
+  return privateDomains.includes(hostname.toLowerCase());
+}
+
+function isSafeUrl(url: string): boolean {
+  try {
+    const parsedUrl = new URL(url);
+    
+    // Only allow HTTP/HTTPS
+    if (!['http:', 'https:'].includes(parsedUrl.protocol)) {
+      return false;
+    }
+    
+    // Block private/internal IPs
+    if (isPrivateIP(parsedUrl.hostname)) {
+      return false;
+    }
+    
+    // Block non-standard ports (except 80, 443, 8080, 8443)
+    if (parsedUrl.port && !['80', '443', '8080', '8443', ''].includes(parsedUrl.port)) {
+      return false;
+    }
+    
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export async function getTitleFromUrl(url: string): Promise<string | null> {
   try {
+    // SSRF protection: validate URL safety
+    if (!isSafeUrl(url)) {
+      console.warn('Blocked potentially unsafe URL:', url);
+      return null;
+    }
+    
     // Set a timeout for the fetch request
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
