@@ -297,10 +297,7 @@ export const html = `
             border-color: var(--accent-color);
         }
 
-        /* Password input specific styling */
-        input[type="password"] {
-            letter-spacing: 0.1em;
-        }
+        /* Password input specific styling removed to prevent letter-spacing inconsistency */
         
         .password-input-wrapper {
             position: relative;
@@ -998,13 +995,22 @@ export const html = `
         function updateAuthenticationUI(isAuthenticated) {
             const sessionStatus = document.getElementById('sessionStatus');
             const apiKeyInput = document.getElementById('apiKeyInput');
+            const passwordToggle = apiKeyInput.parentElement.querySelector('.password-toggle');
             
             if (isAuthenticated) {
                 // Show that user is authenticated
-                apiKeyInput.placeholder = 'Currently authenticated (enter new key to re-authenticate)';
+                apiKeyInput.placeholder = '✓ Currently authenticated';
+                // Hide eye icon when authenticated (it has no function)
+                if (passwordToggle) {
+                    passwordToggle.style.display = 'none';
+                }
             } else {
                 sessionStatus.style.display = 'none';
                 apiKeyInput.placeholder = 'Enter your Workflowy API key';
+                // Show eye icon when not authenticated (for password toggle)
+                if (passwordToggle) {
+                    passwordToggle.style.display = 'block';
+                }
             }
         }
 
