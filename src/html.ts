@@ -598,34 +598,11 @@ export const html = `
 
                 <div class="input-group">
                     <label class="input-label">Security Settings</label>
-                    <div class="radio-group">
-                        <div class="radio-item">
-                            <input type="radio" id="expire1hour" name="expiration" value="1hour">
-                            <label for="expire1hour">1 hour (high security)</label>
-                        </div>
-                        <div class="radio-item">
-                            <input type="radio" id="expire1day" name="expiration" value="1day">
-                            <label for="expire1day">1 day</label>
-                        </div>
-                        <div class="radio-item">
-                            <input type="radio" id="expire7days" name="expiration" value="7days">
-                            <label for="expire7days">7 days</label>
-                        </div>
-                        <div class="radio-item">
-                            <input type="radio" id="expire30days" name="expiration" value="30days" checked>
-                            <label for="expire30days">30 days (recommended)</label>
-                        </div>
-                        <div class="radio-item">
-                            <input type="radio" id="expireNever" name="expiration" value="never">
-                            <label for="expireNever">Never expire (stay signed in)</label>
-                        </div>
-                        <div class="radio-item">
-                            <input type="radio" id="expireCustom" name="expiration" value="custom">
-                            <label for="expireCustom">Custom:</label>
-                            <input type="number" id="customDays" min="1" max="365" value="30" style="width: 60px; margin: 0 5px;">
-                            <span>days</span>
-                        </div>
-                    </div>
+                    <select id="expirationSelect" style="width: 100%; padding: 8px; border: 1px solid var(--border-color); border-radius: 4px; background: var(--bg-primary); color: var(--text-primary);">
+                        <option value="1hour">1 hour (high security)</option>
+                        <option value="30days" selected>30 days (recommended)</option>
+                        <option value="never">Never expire (stay signed in)</option>
+                    </select>
                     <div style="font-size: 12px; color: var(--text-muted); margin-top: 8px;">
                         <i class="fas fa-info-circle"></i> How long to keep you signed in. Shorter periods are more secure. You can always log out manually.
                     </div>
@@ -1111,9 +1088,8 @@ export const html = `
                 settings.globalDailyNote = document.getElementById('dailyNoteCheckbox').checked;
                 
                 // Get security settings
-                const selectedExpiration = document.querySelector('input[name="expiration"]:checked').value;
-                const customDays = selectedExpiration === 'custom' ? 
-                    parseInt(document.getElementById('customDays').value) : null;
+                const selectedExpiration = document.getElementById('expirationSelect').value;
+                const customDays = null; // No longer needed since we simplified the options
                 
                 // Save non-API-key settings first
                 safeSetItem('jotflowy_urlExpansionEnabled', urlExpansionEnabled.toString());
