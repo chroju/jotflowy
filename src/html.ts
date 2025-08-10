@@ -955,7 +955,6 @@ export const html = `
         // Authentication functions
         async function authenticateUser(apiKey, expiration = '30days', customDays = null) {
             try {
-                console.log('Attempting authentication...');
                 const requestBody = {
                     apiKey,
                     expiration
@@ -973,16 +972,12 @@ export const html = `
                     },
                     body: JSON.stringify(requestBody),
                 });
-
-                console.log('Auth response status:', response.status);
                 
                 if (response.ok) {
                     const data = await response.json();
-                    console.log('Authentication successful');
                     return { success: true, expiresAt: data.expiresAt };
                 } else {
                     const errorData = await response.json();
-                    console.log('Authentication failed:', errorData);
                     return { success: false, error: errorData.error || 'Authentication failed' };
                 }
             } catch (error) {
@@ -1442,11 +1437,18 @@ export const html = `
 
             container.innerHTML = settings.locations.map((location, index) => \`
                 <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px; border: 1px solid var(--border-color); border-radius: 8px; margin-bottom: 8px; background: var(--bg-secondary);">
-                    <div>
-                        <div style="font-weight: 500; color: var(--text-primary);">\${location.name}</div>
-                        <div style="font-size: 12px; color: var(--text-muted);">\${location.url}</div>
+                    <div style="flex: 1; min-width: 0;">
+                        <div style="font-weight: 500; color: var(--text-primary); margin-bottom: 4px;">\${location.name}</div>
+                        <a href="\${location.url}" target="_blank" rel="noopener noreferrer" 
+                           style="font-size: 12px; color: var(--link-color); text-decoration: none; word-break: break-all; display: inline-flex; align-items: center; gap: 4px;" 
+                           title="Open \${location.name} in Workflowy"
+                           onmouseover="this.style.textDecoration='underline'" 
+                           onmouseout="this.style.textDecoration='none'">
+                            \${location.url}
+                            <i class="fas fa-external-link-alt" style="font-size: 10px; opacity: 0.7;"></i>
+                        </a>
                     </div>
-                    <button onclick="removeLocation(\${index})" style="background: var(--error-color); color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer;">Remove</button>
+                    <button onclick="removeLocation(\${index})" style="background: var(--error-color); color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; margin-left: 8px; flex-shrink: 0;">Remove</button>
                 </div>
             \`).join('');
         }
