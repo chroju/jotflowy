@@ -17,6 +17,7 @@ const requestSchema = z.object({
   includeTimestamp: z.boolean().default(false),
   expandUrls: z.boolean().default(true),
   dailyNoteCache: z.record(z.string(), z.string()).optional().default({}),
+  dailyNoteParentUrl: z.string().url().optional(), // Parent location for daily note creation
 });
 
 const authSchema = z.object({
@@ -343,6 +344,7 @@ async function processNoteCreation(data: z.infer<typeof requestSchema> & { apiKe
   try {
     let title = data.title;
     let saveLocationUrl = data.saveLocationUrl;
+    const originalSaveLocationUrl = data.saveLocationUrl; // Keep original for daily note recovery
 
     // Handle URL title extraction if enabled
     if (data.expandUrls && isValidHttpUrl(title) && !title.includes('x.com')) {
@@ -414,16 +416,17 @@ async function processNoteCreation(data: z.infer<typeof requestSchema> & { apiKe
         new_bullet_url: result.new_bullet_url 
       };
     } catch (error) {
-      // If using cached daily note and bullet creation fails due to missing location,
-      // it might mean the daily note was deleted - try to recover
-      if (data.createDaily && dailyNoteUrl && error instanceof WorkflowyAPIError && 
-          (error.status === 404 || error.message.includes('not found'))) {
+      
+      // If using daily note and getting location-related error, try to recover
+      if (data.createDaily && error instanceof WorkflowyAPIError && 
+          error.message.toLowerCase().includes('location')) {
         
         console.warn('Daily note appears to have been deleted, attempting to create new one');
         
         try {
           // Create new daily note and retry
-          const newDailyNote = await createDailyNote(data.apiKey, data.saveLocationUrl);
+          const parentUrl = data.dailyNoteParentUrl || originalSaveLocationUrl;
+          const newDailyNote = await createDailyNote(data.apiKey, parentUrl);
           const retryResult = await createBullet({
             apiKey: data.apiKey,
             title,

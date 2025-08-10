@@ -1228,9 +1228,8 @@ export const html = `
                 if (shouldCreateDaily) {
                     const cachedDailyNoteUrl = getCachedDailyNoteUrl();
                     if (cachedDailyNoteUrl) {
-                        // Use cached daily note URL
+                        // Use cached daily note URL, but keep createDaily=true for server-side recovery
                         finalSaveLocationUrl = cachedDailyNoteUrl;
-                        shouldCreateDaily = false; // Don't create new daily note
                         console.log('Using cached daily note for today');
                         showToast('Using existing daily note for today', 'success');
                     } else {
@@ -1256,6 +1255,7 @@ export const html = `
                         includeTimestamp,
                         expandUrls: urlExpansionEnabled,
                         dailyNoteCache: settings.dailyNoteCache,
+                        dailyNoteParentUrl: shouldCreateDaily ? location.url : undefined,
                     }),
                     signal: controller.signal
                 });
