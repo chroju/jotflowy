@@ -604,7 +604,7 @@ export const html = `
                         <option value="never">Never expire (stay signed in)</option>
                     </select>
                     <div style="font-size: 12px; color: var(--text-muted); margin-top: 8px;">
-                        <i class="fas fa-info-circle"></i> How long to keep you signed in. Shorter periods are more secure. You can always log out manually.
+                        <i class="fas fa-info-circle"></i> How long to keep you signed in. Shorter periods are more secure. You can always clear API key manually.
                     </div>
                     <div id="sessionStatus" style="font-size: 12px; color: var(--text-muted); margin-top: 8px; display: none;">
                         <i class="fas fa-clock"></i> Current session expires: <span id="sessionExpiry"></span>
@@ -653,11 +653,6 @@ export const html = `
                     </button>
                 </div>
                 
-                <div class="button-row">
-                    <button id="logoutBtn" class="btn btn-secondary" style="display: none;">
-                        <i class="fas fa-sign-out-alt"></i> Logout
-                    </button>
-                </div>
             </div>
         </div>
     </div>
@@ -997,17 +992,13 @@ export const html = `
         }
 
         function updateAuthenticationUI(isAuthenticated) {
-            const logoutBtn = document.getElementById('logoutBtn');
             const sessionStatus = document.getElementById('sessionStatus');
             const apiKeyInput = document.getElementById('apiKeyInput');
             
             if (isAuthenticated) {
-                logoutBtn.style.display = 'inline-block';
                 // Show that user is authenticated
                 apiKeyInput.placeholder = 'Currently authenticated (enter new key to re-authenticate)';
-                // Show session status will be implemented when we get expiry info
             } else {
-                logoutBtn.style.display = 'none';
                 sessionStatus.style.display = 'none';
                 apiKeyInput.placeholder = 'Enter your Workflowy API key';
             }
@@ -1132,14 +1123,6 @@ export const html = `
                 showToast('Security setting saved', 'success');
             });
 
-            // Logout button
-            document.getElementById('logoutBtn').addEventListener('click', async function() {
-                const success = await logout();
-                if (success) {
-                    updateMainUI();
-                    updateSubmitButtonState();
-                }
-            });
 
             // Setup modal controls
             bindSetupControls();
