@@ -308,6 +308,10 @@ export const html = `
             align-items: center;
         }
         
+        .password-input-wrapper input {
+            padding-right: 45px !important; /* Space for eye icon */
+        }
+        
         .password-toggle {
             position: absolute;
             right: 12px;
