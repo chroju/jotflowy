@@ -1,11 +1,4 @@
-export function isValidHttpUrl(string: string): boolean {
-  try {
-    const url = new URL(string);
-    return url.protocol === 'http:' || url.protocol === 'https:';
-  } catch {
-    return false;
-  }
-}
+import { NETWORK_CONFIG } from '../config';
 
 function isPrivateIP(hostname: string): boolean {
   // Check for IPv4 private addresses
@@ -48,7 +41,7 @@ function isSafeUrl(url: string): boolean {
     }
     
     // Block non-standard ports (except 80, 443, 8080, 8443)
-    if (parsedUrl.port && !['80', '443', '8080', '8443', ''].includes(parsedUrl.port)) {
+    if (parsedUrl.port && !(NETWORK_CONFIG.ALLOWED_PORTS as readonly string[]).includes(parsedUrl.port)) {
       return false;
     }
     
@@ -68,7 +61,7 @@ export async function getTitleFromUrl(url: string): Promise<string | null> {
     
     // Set a timeout for the fetch request
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
+    const timeoutId = setTimeout(() => controller.abort(), NETWORK_CONFIG.FETCH_TIMEOUT);
 
     const response = await fetch(url, {
       signal: controller.signal,
@@ -138,13 +131,6 @@ export async function getTitleFromUrl(url: string): Promise<string | null> {
   }
 }
 
-export function sanitizeInput(input: string): string {
-  return input
-    .replace(/[<>]/g, '') // Remove potential HTML tags
-    .trim()
-    .slice(0, 1000); // Limit length
-}
-
 export function formatTimestamp(includeDate: boolean = false): string {
   const now = new Date();
   const options: Intl.DateTimeFormatOptions = {
@@ -161,18 +147,4 @@ export function formatTimestamp(includeDate: boolean = false): string {
   }
 
   return now.toLocaleString('sv-SE', options);
-}
-
-export function validateWorkflowyUrl(url: string): boolean {
-  try {
-    const parsedUrl = new URL(url);
-    return parsedUrl.hostname === 'workflowy.com' && parsedUrl.hash.startsWith('#/');
-  } catch {
-    return false;
-  }
-}
-
-export function truncateText(text: string, maxLength: number = 100): string {
-  if (text.length <= maxLength) return text;
-  return text.slice(0, maxLength - 3) + '...';
 }

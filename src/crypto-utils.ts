@@ -1,3 +1,5 @@
+import { CRYPTO_CONFIG } from './config';
+
 // Crypto utilities for API key encryption/decryption
 export class CryptoUtils {
   static async generateKey(password: string, salt: Uint8Array): Promise<CryptoKey> {
@@ -14,11 +16,11 @@ export class CryptoUtils {
       {
         name: 'PBKDF2',
         salt: salt as BufferSource,
-        iterations: 100000,
+        iterations: CRYPTO_CONFIG.PBKDF2_ITERATIONS,
         hash: 'SHA-256',
       },
       keyMaterial,
-      { name: 'AES-GCM', length: 256 },
+      { name: 'AES-GCM', length: CRYPTO_CONFIG.KEY_LENGTH },
       false,
       ['encrypt', 'decrypt']
     );
@@ -26,9 +28,9 @@ export class CryptoUtils {
 
   static async encrypt(plaintext: string, masterKey: string): Promise<string> {
     const encoder = new TextEncoder();
-    const salt = crypto.getRandomValues(new Uint8Array(16)); // Generate random salt
+    const salt = crypto.getRandomValues(new Uint8Array(CRYPTO_CONFIG.SALT_LENGTH));
     const key = await this.generateKey(masterKey, salt);
-    const iv = crypto.getRandomValues(new Uint8Array(12));
+    const iv = crypto.getRandomValues(new Uint8Array(CRYPTO_CONFIG.IV_LENGTH));
     
     const encrypted = await crypto.subtle.encrypt(
       { name: 'AES-GCM', iv },
@@ -54,9 +56,9 @@ export class CryptoUtils {
       const combined = Uint8Array.from(atob(encryptedData), c => c.charCodeAt(0));
       
       // Extract salt, IV and encrypted data
-      const salt = combined.slice(0, 16);
-      const iv = combined.slice(16, 28);
-      const encrypted = combined.slice(28);
+      const salt = combined.slice(0, CRYPTO_CONFIG.SALT_LENGTH);
+      const iv = combined.slice(CRYPTO_CONFIG.SALT_LENGTH, CRYPTO_CONFIG.SALT_LENGTH + CRYPTO_CONFIG.IV_LENGTH);
+      const encrypted = combined.slice(CRYPTO_CONFIG.SALT_LENGTH + CRYPTO_CONFIG.IV_LENGTH);
 
       const key = await this.generateKey(masterKey, salt);
       
