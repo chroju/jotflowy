@@ -1,6 +1,6 @@
 // Crypto utilities for API key encryption/decryption
 export class CryptoUtils {
-  static async generateKey(password: string): Promise<CryptoKey> {
+  static async generateKey(password: string, salt: Uint8Array): Promise<CryptoKey> {
     const encoder = new TextEncoder();
     const keyMaterial = await crypto.subtle.importKey(
       'raw',
@@ -13,7 +13,7 @@ export class CryptoUtils {
     return await crypto.subtle.deriveKey(
       {
         name: 'PBKDF2',
-        salt: encoder.encode('jotflowy-salt'),
+        salt: salt as BufferSource,
         iterations: 100000,
         hash: 'SHA-256',
       },
@@ -26,7 +26,8 @@ export class CryptoUtils {
 
   static async encrypt(plaintext: string, masterKey: string): Promise<string> {
     const encoder = new TextEncoder();
-    const key = await this.generateKey(masterKey);
+    const salt = crypto.getRandomValues(new Uint8Array(16)); // Generate random salt
+    const key = await this.generateKey(masterKey, salt);
     const iv = crypto.getRandomValues(new Uint8Array(12));
     
     const encrypted = await crypto.subtle.encrypt(
@@ -35,10 +36,11 @@ export class CryptoUtils {
       encoder.encode(plaintext)
     );
 
-    // Combine IV and encrypted data
-    const combined = new Uint8Array(iv.length + encrypted.byteLength);
-    combined.set(iv);
-    combined.set(new Uint8Array(encrypted), iv.length);
+    // Combine salt, IV and encrypted data
+    const combined = new Uint8Array(salt.length + iv.length + encrypted.byteLength);
+    combined.set(salt);
+    combined.set(iv, salt.length);
+    combined.set(new Uint8Array(encrypted), salt.length + iv.length);
 
     // Base64 encode for cookie storage
     return btoa(String.fromCharCode(...combined));
@@ -47,15 +49,17 @@ export class CryptoUtils {
   static async decrypt(encryptedData: string, masterKey: string): Promise<string> {
     try {
       const decoder = new TextDecoder();
-      const key = await this.generateKey(masterKey);
       
       // Base64 decode
       const combined = Uint8Array.from(atob(encryptedData), c => c.charCodeAt(0));
       
-      // Extract IV and encrypted data
-      const iv = combined.slice(0, 12);
-      const encrypted = combined.slice(12);
+      // Extract salt, IV and encrypted data
+      const salt = combined.slice(0, 16);
+      const iv = combined.slice(16, 28);
+      const encrypted = combined.slice(28);
 
+      const key = await this.generateKey(masterKey, salt);
+      
       const decrypted = await crypto.subtle.decrypt(
         { name: 'AES-GCM', iv },
         key,

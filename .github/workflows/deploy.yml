@@ -32,3 +32,9 @@ jobs:
       with:
         apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
         accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        secrets: |
+          ENCRYPTION_KEY
+          ALLOWED_ORIGINS
+      env:
+        ENCRYPTION_KEY: ${{ secrets.ENCRYPTION_KEY }}
+        ALLOWED_ORIGINS: ${{ secrets.ALLOWED_ORIGINS }}
