@@ -66,6 +66,26 @@ export const html = `
             color: var(--text-secondary);
         }
 
+        .daily-note-display {
+            margin-top: 6px;
+            padding: 4px 0;
+        }
+
+        .daily-note-text {
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        .daily-note-link {
+            color: var(--link-color);
+            text-decoration: none;
+            font-weight: 500;
+        }
+
+        .daily-note-link:hover {
+            text-decoration: underline;
+        }
+
         textarea {
             width: 100%;
             padding: 16px;
@@ -515,6 +535,11 @@ export const html = `
                     <select id="mainLocationSelect">
                         <option value="">Select save location...</option>
                     </select>
+                    <div id="dailyNoteLink" class="daily-note-display" style="display: none;">
+                        <small class="daily-note-text">
+                            Today's Daily Note: <a href="#" id="dailyNoteLinkUrl" target="_blank" class="daily-note-link"></a>
+                        </small>
+                    </div>
                 </div>
             </div>
             
@@ -913,6 +938,9 @@ export const html = `
                 }
                 mainLocationSelect.appendChild(option);
             });
+            
+            // Update daily note display
+            updateDailyNoteDisplay();
         }
 
         // Authentication functions
@@ -1587,8 +1615,33 @@ export const html = `
             });
             
             saveSettings();
+            
+            // Update the daily note display after caching
+            updateDailyNoteDisplay();
         }
 
+        function updateDailyNoteDisplay() {
+            const dailyNoteLink = document.getElementById('dailyNoteLink');
+            const dailyNoteLinkUrl = document.getElementById('dailyNoteLinkUrl');
+            
+            // Only show if Daily Note is enabled globally
+            if (!settings.globalDailyNote) {
+                dailyNoteLink.style.display = 'none';
+                return;
+            }
+            
+            // Check if we have a cached daily note URL for today
+            const cachedUrl = getCachedDailyNoteUrl();
+            
+            if (cachedUrl) {
+                const todayKey = getTodayDateKey();
+                dailyNoteLinkUrl.textContent = todayKey;
+                dailyNoteLinkUrl.href = cachedUrl;
+                dailyNoteLink.style.display = 'block';
+            } else {
+                dailyNoteLink.style.display = 'none';
+            }
+        }
 
         function setupMobileKeyboardHandling() {
             // Include all input elements including those in modals
