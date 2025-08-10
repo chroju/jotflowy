@@ -66,6 +66,26 @@ export const html = `
             color: var(--text-secondary);
         }
 
+        .daily-note-display {
+            margin-top: 6px;
+            padding: 4px 0;
+        }
+
+        .daily-note-text {
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        .daily-note-link {
+            color: var(--link-color);
+            text-decoration: none;
+            font-weight: 500;
+        }
+
+        .daily-note-link:hover {
+            text-decoration: underline;
+        }
+
         textarea {
             width: 100%;
             padding: 16px;
@@ -297,15 +317,16 @@ export const html = `
             border-color: var(--accent-color);
         }
 
-        /* Password input specific styling */
-        input[type="password"] {
-            letter-spacing: 0.1em;
-        }
+        /* Password input specific styling removed to prevent letter-spacing inconsistency */
         
         .password-input-wrapper {
             position: relative;
             display: flex;
             align-items: center;
+        }
+        
+        .password-input-wrapper input {
+            padding-right: 45px !important; /* Space for eye icon */
         }
         
         .password-toggle {
@@ -514,6 +535,11 @@ export const html = `
                     <select id="mainLocationSelect">
                         <option value="">Select save location...</option>
                     </select>
+                    <div id="dailyNoteLink" class="daily-note-display" style="display: none;">
+                        <small class="daily-note-text">
+                            Today's Daily Note: <a href="#" id="dailyNoteLinkUrl" target="_blank" class="daily-note-link"></a>
+                        </small>
+                    </div>
                 </div>
             </div>
             
@@ -597,38 +623,12 @@ export const html = `
                 </div>
 
                 <div class="input-group">
-                    <label class="input-label">Security Settings</label>
-                    <div class="radio-group">
-                        <div class="radio-item">
-                            <input type="radio" id="expire1hour" name="expiration" value="1hour">
-                            <label for="expire1hour">1 hour (high security)</label>
-                        </div>
-                        <div class="radio-item">
-                            <input type="radio" id="expire1day" name="expiration" value="1day">
-                            <label for="expire1day">1 day</label>
-                        </div>
-                        <div class="radio-item">
-                            <input type="radio" id="expire7days" name="expiration" value="7days">
-                            <label for="expire7days">7 days</label>
-                        </div>
-                        <div class="radio-item">
-                            <input type="radio" id="expire30days" name="expiration" value="30days" checked>
-                            <label for="expire30days">30 days (recommended)</label>
-                        </div>
-                        <div class="radio-item">
-                            <input type="radio" id="expireNever" name="expiration" value="never">
-                            <label for="expireNever">Never expire (stay signed in)</label>
-                        </div>
-                        <div class="radio-item">
-                            <input type="radio" id="expireCustom" name="expiration" value="custom">
-                            <label for="expireCustom">Custom:</label>
-                            <input type="number" id="customDays" min="1" max="365" value="30" style="width: 60px; margin: 0 5px;">
-                            <span>days</span>
-                        </div>
-                    </div>
-                    <div style="font-size: 12px; color: var(--text-muted); margin-top: 8px;">
-                        <i class="fas fa-info-circle"></i> How long to keep you signed in. Shorter periods are more secure. You can always log out manually.
-                    </div>
+                    <label class="input-label">How long to keep you signed in</label>
+                    <select id="expirationSelect" style="width: 100%; padding: 8px; border: 1px solid var(--border-color); border-radius: 4px; background: var(--bg-primary); color: var(--text-primary);">
+                        <option value="1hour">1 hour (high security)</option>
+                        <option value="30days" selected>30 days (recommended)</option>
+                        <option value="never">Never expire (stay signed in)</option>
+                    </select>
                     <div id="sessionStatus" style="font-size: 12px; color: var(--text-muted); margin-top: 8px; display: none;">
                         <i class="fas fa-clock"></i> Current session expires: <span id="sessionExpiry"></span>
                     </div>
@@ -639,18 +639,12 @@ export const html = `
                         <input type="checkbox" id="urlExpansionCheckbox" checked>
                         <label for="urlExpansionCheckbox">Expand URLs to Markdown links</label>
                     </div>
-                    <div style="font-size: 12px; color: var(--text-muted); margin-top: 8px;">
-                        <i class="fas fa-info-circle"></i> Automatically fetches page titles and converts URLs to Markdown format: "[Page Title](URL)". Skips social media to avoid rate limits.
-                    </div>
                 </div>
                 
                 <div class="input-group">
                     <div class="checkbox-wrapper">
                         <input type="checkbox" id="timestampCheckbox" checked>
                         <label for="timestampCheckbox">Add timestamp to note (YYYY-MM-DD HH:MM)</label>
-                    </div>
-                    <div style="font-size: 12px; color: var(--text-muted); margin-top: 8px;">
-                        <i class="fas fa-info-circle"></i> Adds current date and time to your notes using your local timezone. Helps track when ideas were captured.
                     </div>
                 </div>
                 
@@ -676,12 +670,6 @@ export const html = `
                     </button>
                 </div>
                 
-                <div class="button-row">
-                    <button id="saveSettingsBtn" class="btn btn-primary">Save Settings</button>
-                    <button id="logoutBtn" class="btn btn-secondary" style="display: none;">
-                        <i class="fas fa-sign-out-alt"></i> Logout
-                    </button>
-                </div>
             </div>
         </div>
     </div>
@@ -950,6 +938,9 @@ export const html = `
                 }
                 mainLocationSelect.appendChild(option);
             });
+            
+            // Update daily note display
+            updateDailyNoteDisplay();
         }
 
         // Authentication functions
@@ -1021,19 +1012,24 @@ export const html = `
         }
 
         function updateAuthenticationUI(isAuthenticated) {
-            const logoutBtn = document.getElementById('logoutBtn');
             const sessionStatus = document.getElementById('sessionStatus');
             const apiKeyInput = document.getElementById('apiKeyInput');
+            const passwordToggle = apiKeyInput.parentElement.querySelector('.password-toggle');
             
             if (isAuthenticated) {
-                logoutBtn.style.display = 'inline-block';
                 // Show that user is authenticated
-                apiKeyInput.placeholder = 'Currently authenticated (enter new key to re-authenticate)';
-                // Show session status will be implemented when we get expiry info
+                apiKeyInput.placeholder = '✓ Currently authenticated';
+                // Hide eye icon when authenticated (it has no function)
+                if (passwordToggle) {
+                    passwordToggle.style.display = 'none';
+                }
             } else {
-                logoutBtn.style.display = 'none';
                 sessionStatus.style.display = 'none';
                 apiKeyInput.placeholder = 'Enter your Workflowy API key';
+                // Show eye icon when not authenticated (for password toggle)
+                if (passwordToggle) {
+                    passwordToggle.style.display = 'block';
+                }
             }
         }
 
@@ -1103,33 +1099,41 @@ export const html = `
             // Modal controls
             bindModalControls();
 
-            // Settings
-            document.getElementById('saveSettingsBtn').addEventListener('click', async function() {
-                const apiKey = document.getElementById('apiKeyInput').value.trim();
-                urlExpansionEnabled = document.getElementById('urlExpansionCheckbox').checked;
-                timestampEnabled = document.getElementById('timestampCheckbox').checked;
-                settings.globalDailyNote = document.getElementById('dailyNoteCheckbox').checked;
-                
-                // Get security settings
-                const selectedExpiration = document.querySelector('input[name="expiration"]:checked').value;
-                const customDays = selectedExpiration === 'custom' ? 
-                    parseInt(document.getElementById('customDays').value) : null;
-                
-                // Save non-API-key settings first
+            // Auto-save settings for each input
+            document.getElementById('urlExpansionCheckbox').addEventListener('change', function() {
+                urlExpansionEnabled = this.checked;
                 safeSetItem('jotflowy_urlExpansionEnabled', urlExpansionEnabled.toString());
+                updateMainUI();
+                showToast('URL expansion setting saved', 'success');
+            });
+            
+            document.getElementById('timestampCheckbox').addEventListener('change', function() {
+                timestampEnabled = this.checked;
                 safeSetItem('jotflowy_timestampEnabled', timestampEnabled.toString());
+                updateMainUI();
+                showToast('Timestamp setting saved', 'success');
+            });
+            
+            document.getElementById('dailyNoteCheckbox').addEventListener('change', function() {
+                settings.globalDailyNote = this.checked;
                 saveSettings();
-                
-                // Handle API key authentication if provided
-                if (apiKey) {
-                    const authResult = await authenticateUser(apiKey, selectedExpiration, customDays);
+                updateMainUI();
+                showToast('Daily note setting saved', 'success');
+            });
+
+            // API key authentication (manual save when user enters/changes API key)
+            document.getElementById('apiKeyInput').addEventListener('blur', async function() {
+                const apiKey = this.value.trim();
+                if (apiKey && apiKey !== settings.apiKey) {
+                    const selectedExpiration = document.getElementById('expirationSelect').value;
+                    const authResult = await authenticateUser(apiKey, selectedExpiration, null);
                     if (authResult.success) {
-                        settings.apiKey = apiKey; // Keep in memory for UI updates
+                        settings.apiKey = apiKey;
                         updateAuthenticationUI(true);
                         updateMainUI();
-                        showToast('Settings saved and authenticated successfully!', 'success');
+                        updateSubmitButtonState();
+                        showToast('API key authenticated successfully!', 'success');
                         
-                        // Show session expiry
                         if (authResult.expiresAt) {
                             const expiryDate = new Date(authResult.expiresAt);
                             document.getElementById('sessionExpiry').textContent = 
@@ -1140,22 +1144,14 @@ export const html = `
                         showToast('Authentication failed: ' + authResult.error, 'error');
                         updateAuthenticationUI(false);
                     }
-                } else {
-                    updateMainUI();
-                    showToast('Settings saved!', 'success');
                 }
-                updateSubmitButtonState();
-                closeModal('settingsModal');
             });
 
-            // Logout button
-            document.getElementById('logoutBtn').addEventListener('click', async function() {
-                const success = await logout();
-                if (success) {
-                    updateMainUI();
-                    updateSubmitButtonState();
-                }
+            // Security settings change
+            document.getElementById('expirationSelect').addEventListener('change', function() {
+                showToast('Security setting saved', 'success');
             });
+
 
             // Setup modal controls
             bindSetupControls();
@@ -1260,9 +1256,8 @@ export const html = `
                 if (shouldCreateDaily) {
                     const cachedDailyNoteUrl = getCachedDailyNoteUrl();
                     if (cachedDailyNoteUrl) {
-                        // Use cached daily note URL
+                        // Use cached daily note URL, but keep createDaily=true for server-side recovery
                         finalSaveLocationUrl = cachedDailyNoteUrl;
-                        shouldCreateDaily = false; // Don't create new daily note
                         console.log('Using cached daily note for today');
                         showToast('Using existing daily note for today', 'success');
                     } else {
@@ -1288,6 +1283,7 @@ export const html = `
                         includeTimestamp,
                         expandUrls: urlExpansionEnabled,
                         dailyNoteCache: settings.dailyNoteCache,
+                        dailyNoteParentUrl: shouldCreateDaily ? location.url : undefined,
                     }),
                     signal: controller.signal
                 });
@@ -1619,8 +1615,33 @@ export const html = `
             });
             
             saveSettings();
+            
+            // Update the daily note display after caching
+            updateDailyNoteDisplay();
         }
 
+        function updateDailyNoteDisplay() {
+            const dailyNoteLink = document.getElementById('dailyNoteLink');
+            const dailyNoteLinkUrl = document.getElementById('dailyNoteLinkUrl');
+            
+            // Only show if Daily Note is enabled globally
+            if (!settings.globalDailyNote) {
+                dailyNoteLink.style.display = 'none';
+                return;
+            }
+            
+            // Check if we have a cached daily note URL for today
+            const cachedUrl = getCachedDailyNoteUrl();
+            
+            if (cachedUrl) {
+                const todayKey = getTodayDateKey();
+                dailyNoteLinkUrl.textContent = todayKey;
+                dailyNoteLinkUrl.href = cachedUrl;
+                dailyNoteLink.style.display = 'block';
+            } else {
+                dailyNoteLink.style.display = 'none';
+            }
+        }
 
         function setupMobileKeyboardHandling() {
             // Include all input elements including those in modals
