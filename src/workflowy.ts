@@ -1,39 +1,17 @@
-export interface CreateBulletRequest {
-  apiKey: string;
-  title: string;
-  note?: string;
-  saveLocationUrl: string;
-}
+import { 
+  CreateBulletRequest, 
+  CreateBulletResponse, 
+  WorkflowyAPIError, 
+  DailyNoteCache 
+} from './types';
+import { WORKFLOWY_CONFIG, CACHE_CONFIG } from './config';
 
-export interface CreateBulletResponse {
-  save_location_url: string;
-  save_location_title: string;
-  save_location_note: string;
-  new_bullet_url: string;
-  new_bullet_title: string;
-  new_bullet_children: any[];
-  new_bullet_note: string | null;
-  new_bullet_id: string;
-}
-
-export interface SaveLocation {
-  name: string;
-  url: string;
-  createDaily: boolean;
-}
-
-const WORKFLOWY_API_BASE = 'https://workflowy.com/api';
-
-export class WorkflowyAPIError extends Error {
-  constructor(message: string, public status?: number) {
-    super(message);
-    this.name = 'WorkflowyAPIError';
-  }
-}
+// Re-export types for backward compatibility
+export { CreateBulletRequest, CreateBulletResponse, WorkflowyAPIError, DailyNoteCache };
 
 export async function createBullet(request: CreateBulletRequest): Promise<CreateBulletResponse> {
   try {
-    const response = await fetch(`${WORKFLOWY_API_BASE}/bullets/create/`, {
+    const response = await fetch(`${WORKFLOWY_CONFIG.API_BASE}${WORKFLOWY_CONFIG.ENDPOINTS.BULLETS_CREATE}`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${request.apiKey}`,
@@ -76,9 +54,6 @@ export async function createDailyNote(apiKey: string, journalRootUrl: string): P
   });
 }
 
-export interface DailyNoteCache {
-  [date: string]: string; // date -> bullet URL
-}
 
 export function getTodayDateKey(): string {
   const today = new Date();
@@ -102,7 +77,7 @@ export function cacheDailyNoteUrl(cache: DailyNoteCache, bulletUrl: string): Dai
   };
 }
 
-export function cleanOldDailyNoteCache(cache: DailyNoteCache, daysToKeep: number = 7): DailyNoteCache {
+export function cleanOldDailyNoteCache(cache: DailyNoteCache, daysToKeep: number = CACHE_CONFIG.DAILY_NOTE_CACHE_DAYS): DailyNoteCache {
   const cutoffDate = new Date();
   cutoffDate.setDate(cutoffDate.getDate() - daysToKeep);
   const cutoffKey = cutoffDate.toISOString().split('T')[0];
