@@ -6,6 +6,7 @@ import { z } from 'zod';
 
 export interface Env {
   ENCRYPTION_KEY?: string; // Master key for API key encryption
+  ALLOWED_ORIGINS?: string; // Comma-separated list of allowed origins
 }
 
 const requestSchema = z.object({
@@ -33,11 +34,16 @@ export default {
     const url = new URL(request.url);
     const path = url.pathname;
 
-    // Enable CORS for all routes
+    // Enable CORS with configurable origins
+    const allowedOrigins = env.ALLOWED_ORIGINS ? env.ALLOWED_ORIGINS.split(',').map(o => o.trim()) : ['*'];
+    const origin = request.headers.get('Origin');
+    const allowedOrigin = allowedOrigins.includes('*') ? '*' : (origin && allowedOrigins.includes(origin) ? origin : null);
+    
     const corsHeaders = {
-      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Origin': allowedOrigin || 'null',
       'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
       'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+      'Access-Control-Allow-Credentials': 'true',
     };
 
     // Handle OPTIONS requests for CORS
@@ -95,7 +101,19 @@ export default {
 
 async function handleAuth(request: Request, env: Env, corsHeaders: Record<string, string>): Promise<Response> {
   try {
-    const masterKey = env.ENCRYPTION_KEY || 'default-key-change-in-production';
+    if (!env.ENCRYPTION_KEY) {
+      console.error('ENCRYPTION_KEY environment variable is not set');
+      return new Response(JSON.stringify({
+        error: 'Server configuration error',
+      }), {
+        status: 500,
+        headers: {
+          'Content-Type': 'application/json',
+          ...corsHeaders,
+        },
+      });
+    }
+    const masterKey = env.ENCRYPTION_KEY;
     const rawData = await request.json();
     const data = authSchema.parse(rawData);
 
@@ -183,7 +201,19 @@ async function handleLogout(request: Request, corsHeaders: Record<string, string
 
 async function handleAuthCheck(request: Request, env: Env, corsHeaders: Record<string, string>): Promise<Response> {
   try {
-    const masterKey = env.ENCRYPTION_KEY || 'default-key-change-in-production';
+    if (!env.ENCRYPTION_KEY) {
+      console.error('ENCRYPTION_KEY environment variable is not set');
+      return new Response(JSON.stringify({
+        error: 'Server configuration error',
+      }), {
+        status: 500,
+        headers: {
+          'Content-Type': 'application/json',
+          ...corsHeaders,
+        },
+      });
+    }
+    const masterKey = env.ENCRYPTION_KEY;
     const encryptedApiKey = getCookie(request, 'auth');
     
     if (!encryptedApiKey) {
@@ -236,7 +266,19 @@ function getExpirationSeconds(expiration: string, customDays?: number | null): n
 async function handleSend(request: Request, env: Env, corsHeaders: Record<string, string>): Promise<Response> {
   try {
     // Get API key from cookie
-    const masterKey = env.ENCRYPTION_KEY || 'default-key-change-in-production';
+    if (!env.ENCRYPTION_KEY) {
+      console.error('ENCRYPTION_KEY environment variable is not set');
+      return new Response(JSON.stringify({
+        error: 'Server configuration error',
+      }), {
+        status: 500,
+        headers: {
+          'Content-Type': 'application/json',
+          ...corsHeaders,
+        },
+      });
+    }
+    const masterKey = env.ENCRYPTION_KEY;
     const encryptedApiKey = getCookie(request, 'auth');
     
     if (!encryptedApiKey) {
