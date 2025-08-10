@@ -598,15 +598,12 @@ export const html = `
                 </div>
 
                 <div class="input-group">
-                    <label class="input-label">Security Settings</label>
+                    <label class="input-label">How long to keep you signed in</label>
                     <select id="expirationSelect" style="width: 100%; padding: 8px; border: 1px solid var(--border-color); border-radius: 4px; background: var(--bg-primary); color: var(--text-primary);">
                         <option value="1hour">1 hour (high security)</option>
                         <option value="30days" selected>30 days (recommended)</option>
                         <option value="never">Never expire (stay signed in)</option>
                     </select>
-                    <div style="font-size: 12px; color: var(--text-muted); margin-top: 8px;">
-                        <i class="fas fa-info-circle"></i> How long to keep you signed in. Shorter periods are more secure. You can always clear API key manually.
-                    </div>
                     <div id="sessionStatus" style="font-size: 12px; color: var(--text-muted); margin-top: 8px; display: none;">
                         <i class="fas fa-clock"></i> Current session expires: <span id="sessionExpiry"></span>
                     </div>
@@ -617,18 +614,12 @@ export const html = `
                         <input type="checkbox" id="urlExpansionCheckbox" checked>
                         <label for="urlExpansionCheckbox">Expand URLs to Markdown links</label>
                     </div>
-                    <div style="font-size: 12px; color: var(--text-muted); margin-top: 8px;">
-                        <i class="fas fa-info-circle"></i> Automatically fetches page titles and converts URLs to Markdown format: "[Page Title](URL)". Skips social media to avoid rate limits.
-                    </div>
                 </div>
                 
                 <div class="input-group">
                     <div class="checkbox-wrapper">
                         <input type="checkbox" id="timestampCheckbox" checked>
                         <label for="timestampCheckbox">Add timestamp to note (YYYY-MM-DD HH:MM)</label>
-                    </div>
-                    <div style="font-size: 12px; color: var(--text-muted); margin-top: 8px;">
-                        <i class="fas fa-info-circle"></i> Adds current date and time to your notes using your local timezone. Helps track when ideas were captured.
                     </div>
                 </div>
                 
