@@ -4,6 +4,9 @@
 
 A modern, streamlined note-taking app for Workflowy using the official API. Quickly capture ideas, thoughts, and notes directly to your Workflowy workspace from any browser.
 
+> [!CAUTION]
+> Your Workflowy API key and data pass through the backend worker. **Please self-host your own instance** to keep them secure.
+
 ## Features
 
 - **Official Workflowy API Integration** - Uses the stable, official API
@@ -111,7 +114,6 @@ npm run deploy
 
 - **No Data Collection**: All settings stay in your browser
 - **Secure API Key Storage**: Stored in HTTP-only cookies, not accessible to JavaScript
-- **Direct Communication**: Your browser talks directly to Workflowy's API through the worker proxy
 - **Open Source**: Full transparency of all code
 
 ## Requirements
