@@ -1,20 +1,20 @@
 # Jotflowy
 
+<img src="public/icon-192.png" alt="Jotflowy" width="64" />
+
 A modern, streamlined note-taking app for Workflowy using the official API. Quickly capture ideas, thoughts, and notes directly to your Workflowy workspace from any browser.
 
 ## Features
 
-- **Official Workflowy API Integration** - Uses the stable, official API instead of reverse-engineered endpoints
-- **Dual Text Areas** - Separate title and note fields for better organization
-- **Global Daily Note Toggle** - Create daily notes from any location when enabled
-- **Smart URL Title Extraction** - Automatically converts URLs to Markdown links with page titles
-- **Daily Note Caching System** - Intelligent caching prevents duplicate daily notes
-- **Timestamp Options** - Optional automatic timestamp insertion (YYYY-MM-DD HH:mm format)
-- **Post History** - View and reuse recent posts with daily note indicators (stored locally)
-- **Input Security Features** - Safe localStorage handling with automatic recovery
-- **One-Click API Setup** - Direct link to Workflowy's API key page
-- **Mobile Optimized** - Responsive design for all devices
-- **No Server Storage** - All settings stored locally in your browser
+- **Official Workflowy API Integration** - Uses the stable, official API
+- **Multiple Destinations** - Configure multiple save locations with custom names
+- **Daily Note Support** - Automatically organize notes under daily date headers
+- **Template System** - Customize note format with date/time placeholders
+- **Smart URL Expansion** - Automatically converts URLs to Markdown links with page titles on send
+- **PWA Support** - Install as a standalone app, works offline, supports Web Share Target
+- **Post History** - View recent posts grouped by date with links to Workflowy
+- **Mobile Optimized** - Responsive design with virtual keyboard support
+- **Secure Cookie-based Auth** - API key stored securely in HTTP-only cookies
 
 ## Quick Start
 
@@ -25,7 +25,7 @@ A modern, streamlined note-taking app for Workflowy using the official API. Quic
 ### 2. Deploy to Cloudflare Workers
 ```bash
 # Clone the repository
-git clone https://github.com/your-username/jotflowy.git
+git clone https://github.com/chroju/jotflowy.git
 cd jotflowy
 
 # Install dependencies
@@ -37,105 +37,55 @@ npm run deploy
 
 ### 3. Configure Your API Key
 1. Open your deployed Jotflowy app
-2. Click "Set Auth token"
-3. Paste your API key and save
+2. Click the Settings icon
+3. Paste your API key and click Save
 
-### 4. Set Up Save Locations
-Configure your preferred Workflowy locations:
-- **Today's Note**: Automatically creates daily notes in your journal
-- **Quick Inbox**: Direct posting to your inbox
-- **Custom locations**: Add any Workflowy URL
+### 4. Set Up Destinations
+1. In Settings, click "+ Add destination"
+2. Navigate to your desired Workflowy location
+3. Enter a display name
+4. Optionally enable Daily Note and customize the template
+5. Click Save
 
 ## Usage
 
-1. **Title Field**: Enter the main content or title of your note
-2. **Note Field** (optional): Add detailed information or context
-3. **Settings**: Configure options in Settings modal:
-   - **Timestamp**: Add current date/time to notes (YYYY-MM-DD HH:MM)
-   - **Daily Note**: Save to today's daily note instead of selected location
-   - **URL Expansion**: Convert URLs to Markdown links with page titles
-4. **Save Location**: Choose where to save your note
-5. **Submit**: Your note is instantly saved to Workflowy
+1. **Write your note** in the main editor
+   - First paragraph becomes the note title
+   - Empty line separates title from note body
+2. **Select destination** from the dropdown in the toolbar
+3. **Click Send** - Your note is saved to Workflowy
 
-## Advanced Features
+### Template System
 
-### Smart URL Title Extraction
+Customize how notes are formatted with placeholders:
 
-When URL expansion is enabled in Settings, Jotflowy automatically:
+- `{content}` - Your input text
+- `{YYYY}` - Year (e.g., 2026)
+- `{MM}` - Month (01-12)
+- `{DD}` - Day (01-31)
+- `{HH}` - Hour (00-23)
+- `{mm}` - Minute (00-59)
+- `{ss}` - Second (00-59)
 
-- **Detects URLs** in the title field when posting
-- **Fetches page titles** from the target website
-- **Converts to Markdown format**: `[Page Title](https://example.com)`
-- **Preserves original URLs** if title extraction fails
-- **Skips social media** like x.com to avoid rate limiting
+**Example:** `**{HH}:{mm}** {content}` → `**14:30** Your note text`
 
-**Example:**
-```
-Input:  https://github.com/workflowy/api
-Output: [Workflowy API](https://github.com/workflowy/api)
-```
+### Smart URL Expansion
 
-### Daily Note Caching System
+When you send a note containing URLs, Jotflowy automatically:
 
-Jotflowy includes intelligent daily note management:
+- Detects plain URLs in your text
+- Fetches page titles from the target websites
+- Converts to Markdown format: `[Page Title](https://example.com)`
+- Preserves URLs already in Markdown link format
 
-- **Automatic Detection** - Recognizes when daily notes already exist for today
-- **Smart Caching** - Stores daily note URLs to prevent duplicates
-- **Cross-Location Support** - Works with the global daily note toggle
-- **Cache Cleanup** - Automatically removes old cache entries (7+ days)
-- **Timezone Aware** - Uses your browser's local timezone for date calculation
+### Daily Note
 
-**How it works:**
-1. First daily note of the day creates a new `YYYY-MM-DD` titled bullet
-2. Subsequent daily notes reuse the cached URL for the same day
-3. Cache persists across browser sessions but cleans up automatically
+When Daily Note is enabled for a destination:
 
-### Input Security Features
-
-Jotflowy includes comprehensive safety measures:
-
-- **Safe localStorage Access** - Gracefully handles storage failures, corruption, and quota limits
-- **JSON Parsing Safety** - Recovers from malformed JSON data automatically  
-- **Settings Validation** - Validates and repairs corrupted configuration data
-- **Error Recovery** - Continues functioning even when localStorage is unavailable
-- **Data Integrity** - Prevents data loss from browser storage limitations
-
-**Automatic Recovery:**
-- Invalid location data is filtered out
-- Corrupted settings revert to safe defaults
-- History data is preserved even if some entries are damaged
-- Users are notified when automatic repairs occur
-
-## Configuration
-
-### Settings Modal
-
-Access all configuration through the Settings button:
-
-**API Configuration:**
-- **API Key**: Your Workflowy API key (stored securely in browser)
-- Direct link to get API key from Workflowy
-
-**Feature Toggles:**
-- **URL Expansion**: Convert URLs to `[Title](URL)` Markdown format
-- **Timestamp**: Add `YYYY-MM-DD HH:MM` timestamp to notes (uses local timezone)  
-- **Daily Note**: Global toggle to save all notes to today's daily note
-
-**Management:**
-- **History**: View past notes with daily note indicators
-- **Locations**: Manage save locations
-
-### Save Locations
-
-Configure your Workflowy save destinations:
-- **Location name**: Displayed in the main dropdown
-- **Workflowy URL**: Direct link to specific location (e.g., `https://workflowy.com/#/abc123`)
-- Locations can be any valid Workflowy URL
-
-**Tips:**
-- Use specific URLs for better organization
-- Daily note creation is now handled by the global toggle
-- URLs are validated to ensure they point to workflowy.com
+- Notes are automatically organized under a daily header (YYYY-MM-DD format)
+- Multiple notes on the same day go under the same header
+- Compatible with [Workflowy Calendar](https://workflowy.com/learn/calendar/) - daily notes appear in your calendar view
+- Great for journaling, daily logs, or time-based organization
 
 ## Development
 
@@ -146,46 +96,27 @@ npm install
 # Start development server
 npm run dev
 
-# Run tests
-npm run test
-
-# Run tests once
-npm run test:run
-
-# Run tests with UI
-npm run test:ui
-
 # Deploy to Cloudflare Workers
 npm run deploy
 ```
 
-### Testing
-
-This project includes unit tests for critical functions:
-
-- **Storage utilities**: localStorage error handling, JSON parsing safety
-- **Settings validation**: Data corruption recovery and validation
-- **Workflowy utilities**: Date handling, cache management, timestamp formatting
-
-Tests use [Vitest](https://vitest.dev/) with jsdom environment for browser APIs.
-
 ## Architecture
 
-- **Frontend**: Single-page application with vanilla JavaScript
+- **Frontend**: Hono JSX with vanilla JavaScript client
 - **Backend**: Cloudflare Workers (serverless)
-- **Storage**: Browser LocalStorage (no server-side storage)
+- **Storage**: Browser localStorage for settings, HTTP-only cookies for API key
 - **API**: Official Workflowy REST API
 
 ## Privacy & Security
 
-- **No Data Collection**: All data stays in your browser
-- **API Key Security**: Stored locally, never transmitted to our servers
-- **Direct Communication**: Your browser talks directly to Workflowy's API
+- **No Data Collection**: All settings stay in your browser
+- **Secure API Key Storage**: Stored in HTTP-only cookies, not accessible to JavaScript
+- **Direct Communication**: Your browser talks directly to Workflowy's API through the worker proxy
 - **Open Source**: Full transparency of all code
 
 ## Requirements
 
-- Modern web browser with LocalStorage support
+- Modern web browser with localStorage support
 - Workflowy account with API access
 - Cloudflare Workers account (free tier available)
 
@@ -199,6 +130,6 @@ Contributions welcome! Please feel free to submit a Pull Request.
 
 ## Support
 
-- **Issues**: [GitHub Issues](https://github.com/your-username/jotflowy/issues)
+- **Issues**: [GitHub Issues](https://github.com/chroju/jotflowy/issues)
 - **Workflowy API**: [Official Documentation](https://workflowy.com/api-key)
 - **Cloudflare Workers**: [Documentation](https://developers.cloudflare.com/workers/)
