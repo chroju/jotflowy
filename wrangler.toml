@@ -1,14 +1,10 @@
 name = "jotflowy"
-main = "src/index.ts"
+main = "src/index.tsx"
 compatibility_date = "2024-01-17"
 
 [vars]
-# Development environment variables
 ENCRYPTION_KEY = "dev-key-change-in-production-abcdef123456"
 ALLOWED_ORIGINS = "http://localhost:8787"
 
-# Note: No KV namespaces needed - all data stored in browser LocalStorage
-
-# GitHub Actions will set these secrets:
-# CLOUDFLARE_API_TOKEN - your Cloudflare API token with Workers:Edit permissions
-# CLOUDFLARE_ACCOUNT_ID - your Cloudflare account ID
+[assets]
+directory = "./public"

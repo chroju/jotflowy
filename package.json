@@ -2,7 +2,7 @@
   "name": "jotflowy",
   "version": "1.0.0",
   "description": "A modern note-taking app for Workflowy using the official API",
-  "main": "src/index.ts",
+  "main": "src/index.tsx",
   "type": "module",
   "private": true,
   "scripts": {
@@ -32,6 +32,6 @@
     "wrangler": "^4.28.0"
   },
   "dependencies": {
-    "zod": "^4.0.15"
+    "hono": "^4.11.9"
   }
 }
