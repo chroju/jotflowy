@@ -91,12 +91,13 @@ api.post("/send", async (c) => {
     name: string;
     note?: string;
     dailyNoteEnabled: boolean;
+    localDate?: string;
   }>();
   const client = new WorkflowyClient(apiKey);
 
   let parentId = body.destinationId;
   if (body.dailyNoteEnabled) {
-    parentId = await client.getOrCreateDailyNote(parentId, new Date());
+    parentId = await client.getOrCreateDailyNote(parentId, body.localDate);
   }
 
   const result = await client.createNode(parentId, body.name, body.note);

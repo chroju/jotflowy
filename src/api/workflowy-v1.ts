@@ -44,9 +44,9 @@ export class WorkflowyClient {
     });
   }
 
-  async findDailyNote(parentId: string, date: Date): Promise<WorkflowyNode | null> {
+  async findDailyNote(parentId: string, dateStr: string): Promise<WorkflowyNode | null> {
     const nodes = await this.getNodes(parentId);
-    const dateStr = formatDate(date);
+    const date = new Date(dateStr + "T00:00:00");
     const weekday = date.toLocaleDateString("en-US", { weekday: "short" });
     const month = date.toLocaleDateString("en-US", { month: "short" });
     const day = date.getDate();
@@ -62,12 +62,13 @@ export class WorkflowyClient {
     return null;
   }
 
-  async getOrCreateDailyNote(parentId: string, date: Date): Promise<string> {
-    const existing = await this.findDailyNote(parentId, date);
+  async getOrCreateDailyNote(parentId: string, dateStr?: string): Promise<string> {
+    const targetDate = dateStr || formatDate(new Date());
+    const existing = await this.findDailyNote(parentId, targetDate);
     if (existing) return existing.id;
 
-    const dateStr = `[${formatDate(date)}]`;
-    const result = await this.createNode(parentId, dateStr);
+    const formattedDate = `[${targetDate}]`;
+    const result = await this.createNode(parentId, formattedDate);
     return result.item_id;
   }
 }

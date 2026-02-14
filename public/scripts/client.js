@@ -289,6 +289,11 @@ async function handleSend() {
     const expandedText = await expandUrls(text);
     const { name, note } = parseContent(expandedText);
     const finalName = dest.defaultText ? applyTemplate(dest.defaultText, name) : name;
+
+    // ローカル日付を生成（サーバー側UTCとの差異を回避）
+    const now = new Date();
+    const localDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+
     await apiRequest("/send", {
       method: "POST",
       body: JSON.stringify({
@@ -296,6 +301,7 @@ async function handleSend() {
         name: finalName,
         note,
         dailyNoteEnabled: dest.dailyNoteEnabled,
+        localDate: dest.dailyNoteEnabled ? localDate : undefined,
       }),
     });
 
