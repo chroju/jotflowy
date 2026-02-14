@@ -66,6 +66,9 @@ export const MainPage: FC = () => (
             <p class="text-muted text-small">
               <a href="https://workflowy.com/api-key" target="_blank" rel="noopener">Get your API key</a>
             </p>
+            <p class="text-muted text-small">
+              WARN: Your API key and data are processed by this server. <a href="https://github.com/chroju/jotflowy" target="_blank" rel="noopener">Deploy your own</a> for full privacy.
+            </p>
           </section>
 
           <section class="settings-section">
