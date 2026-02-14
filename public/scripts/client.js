@@ -1,3 +1,5 @@
+import { applyTemplate, parseContent, escapeRegex, escapeHtml, stripHtml } from "./utils.js";
+
 // State
 let settings = loadSettings();
 let isAuthenticated = false;
@@ -199,24 +201,6 @@ function updateDestinationLabel() {
   destinationLabel.textContent = dest ? dest.name : "No destination";
 }
 
-// Template expansion: applies at send time, wrapping content
-function applyTemplate(template, content) {
-  const now = new Date();
-  let result = template
-    .replace(/\{YYYY\}/g, String(now.getFullYear()))
-    .replace(/\{MM\}/g, String(now.getMonth() + 1).padStart(2, "0"))
-    .replace(/\{DD\}/g, String(now.getDate()).padStart(2, "0"))
-    .replace(/\{HH\}/g, String(now.getHours()).padStart(2, "0"))
-    .replace(/\{mm\}/g, String(now.getMinutes()).padStart(2, "0"))
-    .replace(/\{ss\}/g, String(now.getSeconds()).padStart(2, "0"));
-
-  if (result.includes("{content}")) {
-    result = result.replace(/\{content\}/g, content);
-  } else {
-    result = result + content;
-  }
-  return result;
-}
 
 // Auth check
 async function checkAuth() {
@@ -268,13 +252,6 @@ async function apiRequest(path, options = {}) {
   return res.json();
 }
 
-// Parse editor content: split name and note by empty line
-function parseContent(text) {
-  const parts = text.split(/\n\s*\n/);
-  const name = parts[0].trim();
-  const note = parts.length > 1 ? parts.slice(1).join("\n\n").trim() : undefined;
-  return { name, note };
-}
 
 // Expand URLs to markdown links
 async function expandUrls(text) {
@@ -295,9 +272,6 @@ async function expandUrls(text) {
   return result;
 }
 
-function escapeRegex(str) {
-  return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
 
 // Send
 async function handleSend() {
@@ -609,18 +583,6 @@ function showToast(message, isError = false) {
   }, 2000);
 }
 
-// Utils
-function escapeHtml(str) {
-  const div = document.createElement("div");
-  div.textContent = str;
-  return div.innerHTML;
-}
-
-function stripHtml(html) {
-  const div = document.createElement("div");
-  div.innerHTML = html;
-  return div.textContent || "";
-}
 
 // Service Worker
 function registerServiceWorker() {
