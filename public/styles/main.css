@@ -644,4 +644,9 @@ a:hover {
   .modal {
     align-items: center;
   }
+
+  #app {
+    max-width: 640px;
+    margin: 0 auto;
+  }
 }
