@@ -68,7 +68,7 @@ export class WorkflowyClient {
     if (existing) return existing.id;
 
     const formattedDate = `[${targetDate}]`;
-    const result = await this.createNode(parentId, formattedDate);
+    const result = await this.createNode(parentId, formattedDate, undefined, "bottom");
     return result.item_id;
   }
 }
