@@ -114,8 +114,38 @@ api.get("/history", async (c) => {
 
   if (dailyNote) {
     const dateNodes = await client.getNodes(parentId);
-    const sorted = dateNodes.sort((a, b) => b.priority - a.priority);
-    const recent = sorted.slice(0, 5);
+
+    // priorityベースで候補を絞り込み（上位10件）
+    const candidates = dateNodes.sort((a, b) => b.priority - a.priority).slice(0, 10);
+
+    // 日付文字列でソート（降順）して5件取得
+    // [YYYY-MM-DD]形式とWorkflowy形式（Mon, Jan 1, 2026）の両方に対応
+    const recent = candidates
+      .map((node) => {
+        const name = node.name || "";
+        // [YYYY-MM-DD]形式をチェック
+        const bracketMatch = name.match(/\[(\d{4}-\d{2}-\d{2})\]/);
+        if (bracketMatch) {
+          return { node, dateStr: bracketMatch[1] };
+        }
+        // Workflowy形式（Mon, Jan 1, 2026）をチェック
+        const workflowyMatch = name.match(/\w{3}, (\w{3}) (\d{1,2}), (\d{4})/);
+        if (workflowyMatch) {
+          const months: Record<string, string> = {
+            Jan: "01", Feb: "02", Mar: "03", Apr: "04", May: "05", Jun: "06",
+            Jul: "07", Aug: "08", Sep: "09", Oct: "10", Nov: "11", Dec: "12",
+          };
+          const month = months[workflowyMatch[1]] || "01";
+          const day = workflowyMatch[2].padStart(2, "0");
+          const year = workflowyMatch[3];
+          return { node, dateStr: `${year}-${month}-${day}` };
+        }
+        return { node, dateStr: null };
+      })
+      .filter((item): item is { node: typeof candidates[0]; dateStr: string } => item.dateStr !== null)
+      .sort((a, b) => b.dateStr.localeCompare(a.dateStr))
+      .slice(0, 5)
+      .map((item) => item.node);
 
     const results: { date: string; items: typeof dateNodes }[] = [];
     for (const dateNode of recent) {
