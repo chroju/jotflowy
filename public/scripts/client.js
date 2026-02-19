@@ -342,8 +342,10 @@ async function loadHistory() {
         .map((node) => {
           const text = stripHtml(node.name || "").slice(0, 100);
           const wfUrl = `https://workflowy.com/#/${node.id}`;
+          const isCompleted = node.completedAt !== null;
+          const completedClass = isCompleted ? " completed" : "";
           return `
-            <div class="history-item">
+            <div class="history-item${completedClass}">
               <div class="history-item-text">${escapeHtml(text)}</div>
               <a href="${wfUrl}" target="_blank" class="history-item-link" title="Open in Workflowy">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -436,7 +438,8 @@ function renderNodeTree(nodes) {
   for (const node of nodes) {
     const text = stripHtml(node.name || "(untitled)");
     const div = document.createElement("div");
-    div.className = "node-tree-item" + (selectedNodeId === node.id ? " selected" : "");
+    const isCompleted = node.completedAt !== null;
+    div.className = "node-tree-item" + (selectedNodeId === node.id ? " selected" : "") + (isCompleted ? " completed" : "");
 
     const nameSpan = document.createElement("span");
     nameSpan.className = "node-tree-item-name";
