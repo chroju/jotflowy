@@ -508,6 +508,14 @@ html, body {
   background: var(--nord2);
 }
 
+.node-tree-item.completed {
+  opacity: 0.5;
+}
+
+.node-tree-item.completed .node-tree-item-name {
+  text-decoration: line-through;
+}
+
 /* Sub panel */
 .sub-panel {
   border-top: 1px solid var(--border);
@@ -572,6 +580,14 @@ html, body {
 
 .history-item-link:hover {
   color: var(--accent);
+}
+
+.history-item.completed {
+  opacity: 0.5;
+}
+
+.history-item.completed .history-item-text {
+  text-decoration: line-through;
 }
 
 /* Toast */
