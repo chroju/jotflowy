@@ -71,6 +71,18 @@ export class WorkflowyClient {
     const result = await this.createNode(parentId, formattedDate, undefined, "bottom");
     return result.item_id;
   }
+
+  async completeNode(nodeId: string): Promise<void> {
+    await this.request(`/nodes/${encodeURIComponent(nodeId)}/complete`, {
+      method: "POST",
+    });
+  }
+
+  async uncompleteNode(nodeId: string): Promise<void> {
+    await this.request(`/nodes/${encodeURIComponent(nodeId)}/uncomplete`, {
+      method: "POST",
+    });
+  }
 }
 
 function formatDate(date: Date): string {
