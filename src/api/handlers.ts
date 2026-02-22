@@ -115,8 +115,8 @@ api.get("/history", async (c) => {
   if (dailyNote) {
     const dateNodes = await client.getNodes(parentId);
 
-    // priorityベースで候補を絞り込み（上位10件）
-    const candidates = dateNodes.sort((a, b) => b.priority - a.priority).slice(0, 10);
+    // priorityベースで候補を絞り込み（上位14件）
+    const candidates = dateNodes.sort((a, b) => b.priority - a.priority).slice(0, 14);
 
     // 日付文字列でソート（降順）して5件取得
     // [YYYY-MM-DD]形式とWorkflowy形式（Mon, Jan 1, 2026）の両方に対応
@@ -144,19 +144,37 @@ api.get("/history", async (c) => {
       })
       .filter((item): item is { node: typeof candidates[0]; dateStr: string } => item.dateStr !== null)
       .sort((a, b) => b.dateStr.localeCompare(a.dateStr))
-      .slice(0, 5)
+      .slice(0, 7)
       .map((item) => item.node);
 
-    const results: { date: string; items: typeof dateNodes }[] = [];
+    const results: { date: string; dateId: string; items: typeof dateNodes }[] = [];
     for (const dateNode of recent) {
       const children = await client.getNodes(dateNode.id);
-      results.push({ date: dateNode.name, items: children });
+      results.push({ date: dateNode.name, dateId: dateNode.id, items: children });
     }
     return c.json(results);
   }
 
   const nodes = await client.getNodes(parentId);
   return c.json(nodes.map((n) => ({ date: null, items: [n] })));
+});
+
+// Complete node
+api.post("/nodes/:id/complete", async (c) => {
+  const apiKey = await getApiKey(c as never);
+  const nodeId = c.req.param("id");
+  const client = new WorkflowyClient(apiKey);
+  await client.completeNode(nodeId);
+  return c.json({ ok: true });
+});
+
+// Uncomplete node
+api.post("/nodes/:id/uncomplete", async (c) => {
+  const apiKey = await getApiKey(c as never);
+  const nodeId = c.req.param("id");
+  const client = new WorkflowyClient(apiKey);
+  await client.uncompleteNode(nodeId);
+  return c.json({ ok: true });
 });
 
 // SSRF protection for URL fetch

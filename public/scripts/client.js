@@ -335,18 +335,64 @@ async function loadHistory() {
     let html = "";
     for (const group of groups) {
       if (group.date) {
-        html += `<div class="history-date-header">${escapeHtml(stripHtml(group.date))}</div>`;
+        const dateWfUrl = group.dateId ? `https://workflowy.com/#/${group.dateId}` : null;
+        const dateText = escapeHtml(stripHtml(group.date));
+        html += dateWfUrl
+          ? `<div class="history-date-header">
+              <span class="history-date-text">${dateText}</span>
+              <a href="${dateWfUrl}" target="_blank" class="history-date-link" title="Open in Workflowy">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+                  <polyline points="15 3 21 3 21 9" />
+                  <line x1="10" y1="14" x2="21" y2="3" />
+                </svg>
+              </a>
+            </div>`
+          : `<div class="history-date-header">${dateText}</div>`;
       }
       if (!group.items.length) continue;
       html += group.items
         .map((node) => {
           const text = stripHtml(node.name || "").slice(0, 100);
+          const note = node.note ? stripHtml(node.note) : "";
           const wfUrl = `https://workflowy.com/#/${node.id}`;
           const isCompleted = node.completedAt !== null;
           const completedClass = isCompleted ? " completed" : "";
+          const hasNote = note.length > 0;
+
+          const toggleBtn = hasNote
+            ? `<button class="history-item-toggle" data-node-id="${node.id}" title="Toggle note">
+                <svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor">
+                  <polygon points="2,0 8,5 2,10" />
+                </svg>
+              </button>`
+            : `<span class="history-item-toggle-spacer"></span>`;
+
+          const noteHtml = hasNote
+            ? `<div class="history-item-note hidden" data-note-for="${node.id}">${escapeHtml(note)}</div>`
+            : "";
+
+          const completeBtn = isCompleted
+            ? `<button class="history-item-uncomplete" data-node-id="${node.id}" title="Mark as incomplete">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M3 12a9 9 0 1 0 18 0 9 9 0 1 0 -18 0" />
+                  <path d="M9 12l2 2l4 -4" />
+                </svg>
+              </button>`
+            : `<button class="history-item-complete" data-node-id="${node.id}" title="Mark as complete">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="12" cy="12" r="9" />
+                </svg>
+              </button>`;
+
           return `
-            <div class="history-item${completedClass}">
-              <div class="history-item-text">${escapeHtml(text)}</div>
+            <div class="history-item${completedClass}" data-node-id="${node.id}">
+              ${toggleBtn}
+              <div class="history-item-content">
+                <div class="history-item-text">${escapeHtml(text)}</div>
+                ${noteHtml}
+              </div>
+              ${completeBtn}
               <a href="${wfUrl}" target="_blank" class="history-item-link" title="Open in Workflowy">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                   <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
@@ -360,8 +406,70 @@ async function loadHistory() {
         .join("");
     }
     historyList.innerHTML = html || '<p class="text-muted">No items found</p>';
+
+    // Event delegation for toggle and complete buttons
+    historyList.addEventListener("click", handleHistoryClick);
   } catch (e) {
     historyList.innerHTML = `<p class="text-muted">${escapeHtml(e.message)}</p>`;
+  }
+}
+
+// Handle clicks in history list (toggle notes and complete/uncomplete)
+async function handleHistoryClick(e) {
+  const toggleBtn = e.target.closest(".history-item-toggle");
+  if (toggleBtn) {
+    const nodeId = toggleBtn.dataset.nodeId;
+    const noteEl = historyList.querySelector(`[data-note-for="${nodeId}"]`);
+    if (noteEl) {
+      noteEl.classList.toggle("hidden");
+      toggleBtn.classList.toggle("expanded");
+    }
+    return;
+  }
+
+  const completeBtn = e.target.closest(".history-item-complete");
+  if (completeBtn) {
+    const nodeId = completeBtn.dataset.nodeId;
+    completeBtn.disabled = true;
+    try {
+      await apiRequest(`/nodes/${encodeURIComponent(nodeId)}/complete`, { method: "POST" });
+      const historyItem = historyList.querySelector(`.history-item[data-node-id="${nodeId}"]`);
+      if (historyItem) {
+        historyItem.classList.add("completed");
+        completeBtn.outerHTML = `
+          <button class="history-item-uncomplete" data-node-id="${nodeId}" title="Mark as incomplete">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M3 12a9 9 0 1 0 18 0 9 9 0 1 0 -18 0" />
+              <path d="M9 12l2 2l4 -4" />
+            </svg>
+          </button>`;
+      }
+    } catch (err) {
+      showToast(err.message, true);
+    }
+    return;
+  }
+
+  const uncompleteBtn = e.target.closest(".history-item-uncomplete");
+  if (uncompleteBtn) {
+    const nodeId = uncompleteBtn.dataset.nodeId;
+    uncompleteBtn.disabled = true;
+    try {
+      await apiRequest(`/nodes/${encodeURIComponent(nodeId)}/uncomplete`, { method: "POST" });
+      const historyItem = historyList.querySelector(`.history-item[data-node-id="${nodeId}"]`);
+      if (historyItem) {
+        historyItem.classList.remove("completed");
+        uncompleteBtn.outerHTML = `
+          <button class="history-item-complete" data-node-id="${nodeId}" title="Mark as complete">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="9" />
+            </svg>
+          </button>`;
+      }
+    } catch (err) {
+      showToast(err.message, true);
+    }
+    return;
   }
 }
 
