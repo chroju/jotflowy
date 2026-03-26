@@ -172,7 +172,6 @@ function toggleDestinationDropdown() {
       saveSettings();
       updateDestinationLabel();
       destinationDropdown.classList.add("hidden");
-      editor.value = "";
         });
     destinationDropdown.appendChild(item);
   }
@@ -604,7 +603,6 @@ function renderDestinationList() {
       saveSettings();
       updateDestinationLabel();
       renderDestinationList();
-      editor.value = "";
         });
     div.querySelector(".destination-item-delete").addEventListener("click", (e) => {
       e.stopPropagation();
