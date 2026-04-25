@@ -103,20 +103,19 @@ html, body {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  background: var(--bg-light);
-  border: 1px solid var(--border);
+  background: transparent;
+  border: none;
   border-radius: var(--radius);
   color: var(--text-muted);
   padding: 6px 10px;
   font-size: 13px;
   cursor: pointer;
   max-width: 100%;
-  transition: border-color 0.15s, background 0.15s;
+  transition: background 0.15s;
 }
 
 .destination-selector:hover {
-  border-color: var(--accent);
-  background: var(--bg-lighter);
+  background: var(--bg-light);
 }
 
 .destination-icon {
@@ -140,7 +139,7 @@ html, body {
   bottom: calc(100% + 6px);
   left: 0;
   background: var(--bg-light);
-  border: 1px solid var(--border);
+  border: none;
   border-radius: var(--radius);
   min-width: 200px;
   max-width: 300px;
@@ -192,9 +191,9 @@ html, body {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background: var(--bg-light);
+  background: transparent;
   color: var(--text-muted);
-  border: 1px solid var(--border);
+  border: none;
   border-radius: var(--radius);
   padding: 8px;
   cursor: pointer;
@@ -202,7 +201,7 @@ html, body {
 }
 
 .btn:hover {
-  background: var(--bg-lighter);
+  background: var(--bg-light);
   color: var(--text);
 }
 
@@ -213,7 +212,6 @@ html, body {
 .btn-send {
   background: var(--accent);
   color: var(--nord6);
-  border-color: var(--accent);
   padding: 8px 16px;
   font-weight: 600;
   gap: 6px;
@@ -221,7 +219,6 @@ html, body {
 
 .btn-send:hover {
   background: var(--accent-hover);
-  border-color: var(--accent-hover);
 }
 
 .btn-send:disabled {
@@ -237,13 +234,11 @@ html, body {
 .btn-primary {
   background: var(--accent);
   color: var(--nord6);
-  border-color: var(--accent);
 }
 
 .btn-danger {
   color: var(--nord6);
   background: var(--danger);
-  border-color: var(--danger);
 }
 
 .btn-danger:hover {

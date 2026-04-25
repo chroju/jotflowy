@@ -14,33 +14,21 @@ export const MainPage: FC = () => (
     <footer class="toolbar">
       <div class="toolbar-left">
         <button id="destination-selector" class="destination-selector" title="Change destination">
-          <svg class="destination-icon" width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M5 3l14 9-14 9V3z" />
-          </svg>
+          <iconify-icon class="destination-icon" icon="heroicons:map-pin" width="12" height="12"></iconify-icon>
           <span id="destination-label">No destination</span>
-          <svg class="destination-chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <polyline points="6 9 12 15 18 9" />
-          </svg>
+          <iconify-icon class="destination-chevron" icon="heroicons:chevron-down" width="12" height="12"></iconify-icon>
         </button>
         <div id="destination-dropdown" class="destination-dropdown hidden"></div>
       </div>
       <div class="toolbar-right">
         <button id="btn-settings" class="btn" title="Settings">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="12" cy="12" r="3" />
-            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
-          </svg>
+          <iconify-icon icon="heroicons:cog-6-tooth" width="20" height="20"></iconify-icon>
         </button>
         <button id="btn-history" class="btn" title="History">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="12" cy="12" r="10" />
-            <polyline points="12 6 12 12 16 14" />
-          </svg>
+          <iconify-icon icon="heroicons:clock" width="20" height="20"></iconify-icon>
         </button>
         <button id="btn-send" class="btn btn-send" title="Send">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z" />
-          </svg>
+          <iconify-icon icon="heroicons:paper-airplane" width="16" height="16"></iconify-icon>
           Send
         </button>
       </div>
