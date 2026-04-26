@@ -14,6 +14,7 @@ export const BaseLayout: FC<PropsWithChildren<{ title?: string }>> = ({ children
     </head>
     <body>
       {children}
+      <script src="https://cdn.jsdelivr.net/npm/iconify-icon@2/dist/iconify-icon.min.js"></script>
       <script src="/scripts/client.js" type="module"></script>
     </body>
   </html>
