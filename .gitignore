@@ -8,6 +8,7 @@ node_modules/
 .local/
 
 # Environment files
+.dev.vars
 .env
 .env.local
 .env.production
