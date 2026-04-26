@@ -1,4 +1,4 @@
-import { applyTemplate, parseContent, escapeRegex, escapeHtml, stripHtml } from "./utils.js";
+import { applyTemplate, parseContent, escapeRegex, escapeHtml, stripHtml, applyTypographySettings, FONT_FAMILY_MAP } from "./utils.js";
 
 // State
 let settings = loadSettings();
@@ -16,6 +16,11 @@ const toast = document.getElementById("toast");
 
 // Settings modal
 const modalSettings = document.getElementById("modal-settings");
+const fontSizeSlider = document.getElementById("font-size-slider");
+const fontSizeValue = document.getElementById("font-size-value");
+const lineHeightSlider = document.getElementById("line-height-slider");
+const lineHeightValue = document.getElementById("line-height-value");
+const fontFamilySelect = document.getElementById("font-family-select");
 const apiKeyInput = document.getElementById("api-key-input");
 const btnSaveApikey = document.getElementById("btn-save-apikey");
 const btnClearApikey = document.getElementById("btn-clear-apikey");
@@ -40,6 +45,7 @@ let selectedNodeId = null;
 
 // Init
 async function init() {
+  applyTypographySettings(settings);
   updateDestinationLabel();
   handleShareTarget();
   registerServiceWorker();
@@ -66,7 +72,36 @@ function bindEvents() {
   btnSettings.addEventListener("click", () => {
     updateApiKeyUI();
     renderDestinationList();
+    const fs = settings.fontSize ?? 16;
+    const lh = settings.lineHeight ?? 1.8;
+    fontSizeSlider.value = String(fs);
+    fontSizeValue.textContent = `${fs}px`;
+    lineHeightSlider.value = String(lh);
+    lineHeightValue.textContent = String(lh);
+    fontFamilySelect.value = settings.fontFamily || "gothic";
     openModal(modalSettings);
+  });
+
+  fontSizeSlider.addEventListener("input", (e) => {
+    const val = Number(e.target.value);
+    fontSizeValue.textContent = `${val}px`;
+    settings.fontSize = val;
+    saveSettings();
+    applyTypographySettings(settings);
+  });
+
+  lineHeightSlider.addEventListener("input", (e) => {
+    const val = Number(e.target.value);
+    lineHeightValue.textContent = String(val);
+    settings.lineHeight = val;
+    saveSettings();
+    applyTypographySettings(settings);
+  });
+
+  fontFamilySelect.addEventListener("change", (e) => {
+    settings.fontFamily = e.target.value;
+    saveSettings();
+    applyTypographySettings(settings);
   });
 
   // Destination selector dropdown
@@ -184,7 +219,7 @@ function loadSettings() {
     const raw = localStorage.getItem("jotflowy_settings");
     if (raw) return JSON.parse(raw);
   } catch {}
-  return { destinations: [], selectedDestinationId: "" };
+  return { destinations: [], selectedDestinationId: "", fontSize: 16, lineHeight: 1.8, fontFamily: "gothic" };
 }
 
 function saveSettings() {

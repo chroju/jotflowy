@@ -65,6 +65,32 @@ export const MainPage: FC = () => (
             <button id="btn-add-destination" class="btn btn-small">+ Add destination</button>
           </section>
 
+          <section class="settings-section">
+            <h3>Typography</h3>
+            <div class="slider-group">
+              <div class="slider-header">
+                <label class="input-label" for="font-size-slider">Font Size</label>
+                <span id="font-size-value" class="slider-value">16px</span>
+              </div>
+              <input id="font-size-slider" class="slider" type="range" min="12" max="24" step="1" value="16" />
+            </div>
+            <div class="slider-group">
+              <div class="slider-header">
+                <label class="input-label" for="line-height-slider">Line Height</label>
+                <span id="line-height-value" class="slider-value">1.8</span>
+              </div>
+              <input id="line-height-slider" class="slider" type="range" min="1.2" max="2.4" step="0.1" value="1.8" />
+            </div>
+            <div class="input-group">
+              <label class="input-label" for="font-family-select">Font Family</label>
+              <select id="font-family-select" class="select">
+                <option value="gothic">游ゴシック (Gothic)</option>
+                <option value="hiragino">ヒラギノ角ゴ (Gothic)</option>
+                <option value="mincho">游明朝 (Mincho)</option>
+              </select>
+            </div>
+          </section>
+
           {/* Add destination sub-panel */}
           <div id="panel-add-destination" class="sub-panel hidden">
             <h3>Add Destination</h3>

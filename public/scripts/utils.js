@@ -42,3 +42,18 @@ export function stripHtml(html) {
   div.innerHTML = html;
   return div.textContent || "";
 }
+
+export const FONT_FAMILY_MAP = {
+  gothic: '"Yu Gothic", "游ゴシック", YuGothic, "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Noto Sans CJK JP", "Noto Sans JP", -apple-system, BlinkMacSystemFont, sans-serif',
+  hiragino: '"Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic", "游ゴシック", YuGothic, "Noto Sans CJK JP", "Noto Sans JP", -apple-system, BlinkMacSystemFont, sans-serif',
+  mincho: '"Yu Mincho", "游明朝", YuMincho, "Hiragino Mincho ProN", "Noto Serif CJK JP", serif',
+};
+
+export function applyTypographySettings(settings) {
+  const fontSize = settings.fontSize ?? 16;
+  const lineHeight = settings.lineHeight ?? 1.8;
+  const fontFamily = FONT_FAMILY_MAP[settings.fontFamily] ?? FONT_FAMILY_MAP.gothic;
+  document.documentElement.style.setProperty("--font-size", `${fontSize}px`);
+  document.documentElement.style.setProperty("--line-height", String(lineHeight));
+  document.documentElement.style.setProperty("--font-family", fontFamily);
+}
