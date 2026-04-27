@@ -313,9 +313,39 @@ html, body {
 
 /* Settings */
 .settings-section {
+  border-top: 1px solid var(--border);
+  padding-top: 16px;
+}
+
+.settings-section:first-child {
+  border-top: none;
+  padding-top: 0;
+}
+
+.settings-summary {
   display: flex;
-  flex-direction: column;
-  gap: 8px;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  list-style: none;
+  user-select: none;
+}
+
+.settings-summary::-webkit-details-marker {
+  display: none;
+}
+
+.settings-summary::before {
+  content: "›";
+  font-size: 22px;
+  line-height: 1;
+  color: var(--text-muted);
+  transition: transform 0.15s ease;
+  display: inline-block;
+}
+
+.settings-section[open] .settings-summary::before {
+  transform: rotate(90deg);
 }
 
 .settings-section h3 {
@@ -324,6 +354,13 @@ html, body {
   color: var(--text-muted);
   text-transform: uppercase;
   letter-spacing: 0.5px;
+}
+
+.settings-content {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 8px;
 }
 
 .input-group {
