@@ -5,6 +5,7 @@ import type { WorkflowyNode } from "../types";
 const mockGetNodes = vi.fn();
 const mockCompleteNode = vi.fn();
 const mockUncompleteNode = vi.fn();
+const mockDeleteNode = vi.fn();
 
 vi.mock("../api/workflowy-v1", () => ({
   WorkflowyClient: vi.fn().mockImplementation(() => ({
@@ -12,6 +13,7 @@ vi.mock("../api/workflowy-v1", () => ({
     createNode: vi.fn(),
     completeNode: mockCompleteNode,
     uncompleteNode: mockUncompleteNode,
+    deleteNode: mockDeleteNode,
     getOrCreateDailyNote: vi.fn(),
     findDailyNote: vi.fn(),
   })),
@@ -130,5 +132,22 @@ describe("GET /api/history", () => {
     const req = makeRequest("/api/history?daily_note=true");
     const res = await app.fetch(req, testEnv);
     expect(res.status).toBe(400);
+  });
+});
+
+describe("DELETE /api/nodes/:id", () => {
+  beforeEach(() => {
+    mockDeleteNode.mockReset();
+  });
+
+  it("calls deleteNode and returns ok", async () => {
+    mockDeleteNode.mockResolvedValue(undefined);
+    const req = makeRequest("/api/nodes/node-abc", { method: "DELETE" });
+    const res = await app.fetch(req, testEnv);
+    const data = await res.json() as { ok: boolean };
+
+    expect(res.status).toBe(200);
+    expect(data.ok).toBe(true);
+    expect(mockDeleteNode).toHaveBeenCalledWith("node-abc");
   });
 });

@@ -83,6 +83,12 @@ export class WorkflowyClient {
       method: "POST",
     });
   }
+
+  async deleteNode(nodeId: string): Promise<void> {
+    await this.request(`/nodes/${encodeURIComponent(nodeId)}`, {
+      method: "DELETE",
+    });
+  }
 }
 
 function formatDate(date: Date): string {

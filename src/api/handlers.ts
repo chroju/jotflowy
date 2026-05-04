@@ -168,6 +168,15 @@ api.post("/nodes/:id/complete", async (c) => {
   return c.json({ ok: true });
 });
 
+// Delete node
+api.delete("/nodes/:id", async (c) => {
+  const apiKey = await getApiKey(c as never);
+  const nodeId = c.req.param("id");
+  const client = new WorkflowyClient(apiKey);
+  await client.deleteNode(nodeId);
+  return c.json({ ok: true });
+});
+
 // Uncomplete node
 api.post("/nodes/:id/uncomplete", async (c) => {
   const apiKey = await getApiKey(c as never);
