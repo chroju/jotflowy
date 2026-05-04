@@ -644,6 +644,12 @@ html, body {
   gap: 8px;
 }
 
+.history-load-more {
+  display: flex;
+  justify-content: center;
+  padding: 8px 0 4px;
+}
+
 .history-date-header {
   display: flex;
   align-items: center;
@@ -672,6 +678,29 @@ html, body {
 
 .history-date-link:hover {
   color: var(--accent);
+}
+
+.history-date-delete {
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  padding: 2px;
+  border-radius: 4px;
+  transition: color 0.15s;
+  margin-left: auto;
+}
+
+.history-date-delete:hover {
+  color: var(--error, #bf616a);
+}
+
+.history-date-delete:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .history-item {
@@ -736,6 +765,30 @@ html, body {
 
 .history-item-link:hover {
   color: var(--accent);
+}
+
+.history-item-delete {
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: color 0.15s, background 0.15s;
+}
+
+.history-item-delete:hover {
+  color: var(--error, #bf616a);
+  background: rgba(191, 97, 106, 0.1);
+}
+
+.history-item-delete:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .history-item-note {

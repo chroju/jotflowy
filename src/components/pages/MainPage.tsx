@@ -138,6 +138,9 @@ export const MainPage: FC = () => (
           <div id="history-list" class="history-list">
             <p class="text-muted">Loading...</p>
           </div>
+          <div id="history-load-more" class="history-load-more hidden">
+            <button id="btn-load-more" class="btn btn-small">Load more</button>
+          </div>
         </div>
       </div>
     </div>

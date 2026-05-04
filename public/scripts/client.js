@@ -21,6 +21,8 @@ const fontSizeValue = document.getElementById("font-size-value");
 const lineHeightSlider = document.getElementById("line-height-slider");
 const lineHeightValue = document.getElementById("line-height-value");
 const fontFamilySelect = document.getElementById("font-family-select");
+const historyLoadMore = document.getElementById("history-load-more");
+const btnLoadMore = document.getElementById("btn-load-more");
 const apiKeyInput = document.getElementById("api-key-input");
 const btnSaveApikey = document.getElementById("btn-save-apikey");
 const btnClearApikey = document.getElementById("btn-clear-apikey");
@@ -68,7 +70,12 @@ function setupMobileViewport() {
 
 function bindEvents() {
   btnSend.addEventListener("click", handleSend);
-  btnHistory.addEventListener("click", () => openModal(modalHistory, loadHistory));
+  btnHistory.addEventListener("click", () => openModal(modalHistory, () => loadHistory(7)));
+  btnLoadMore.addEventListener("click", () => {
+    const current = parseInt(btnLoadMore.dataset.currentLimit || "7", 10);
+    btnLoadMore.innerHTML = '<div class="spinner"></div>';
+    loadHistory(current + 7, true);
+  });
   btnSettings.addEventListener("click", () => {
     updateApiKeyUI();
     renderDestinationList();
@@ -349,28 +356,42 @@ async function handleSend() {
 }
 
 // History
-async function loadHistory() {
+async function loadHistory(limit = 7, append = false) {
   const dest = getSelectedDestination();
   if (!dest) {
     historyList.innerHTML = '<p class="text-muted">No destination selected</p>';
     return;
   }
 
-  historyList.innerHTML = '<div class="spinner"></div>';
+  if (!append) {
+    historyList.innerHTML = '<div class="spinner"></div>';
+    historyLoadMore.classList.add("hidden");
+  }
+  btnLoadMore.disabled = true;
   try {
     const groups = await apiRequest(
-      `/history?parent_id=${encodeURIComponent(dest.nodeId)}&daily_note=${dest.dailyNoteEnabled}`
+      `/history?parent_id=${encodeURIComponent(dest.nodeId)}&daily_note=${dest.dailyNoteEnabled}&limit=${limit}`
     );
     if (!groups.length) {
-      historyList.innerHTML = '<p class="text-muted">No items found</p>';
+      if (!append) historyList.innerHTML = '<p class="text-muted">No items found</p>';
       return;
     }
+
+    const trashIcon = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <polyline points="3 6 5 6 21 6" />
+      <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+      <path d="M10 11v6M14 11v6" />
+      <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
+    </svg>`;
 
     let html = "";
     for (const group of groups) {
       if (group.date) {
         const dateWfUrl = group.dateId ? `https://workflowy.com/#/${group.dateId}` : null;
         const dateText = escapeHtml(stripHtml(group.date));
+        const dateDeleteBtn = group.dateId
+          ? `<button class="history-date-delete" data-node-id="${group.dateId}" title="Delete date group">${trashIcon}</button>`
+          : "";
         html += dateWfUrl
           ? `<div class="history-date-header">
               <span class="history-date-text">${dateText}</span>
@@ -381,6 +402,7 @@ async function loadHistory() {
                   <line x1="10" y1="14" x2="21" y2="3" />
                 </svg>
               </a>
+              ${dateDeleteBtn}
             </div>`
           : `<div class="history-date-header">${dateText}</div>`;
       }
@@ -434,17 +456,43 @@ async function loadHistory() {
                   <line x1="10" y1="14" x2="21" y2="3" />
                 </svg>
               </a>
+              <button class="history-item-delete" data-node-id="${node.id}" title="Delete">${trashIcon}</button>
             </div>
           `;
         })
         .join("");
     }
-    historyList.innerHTML = html || '<p class="text-muted">No items found</p>';
+    if (append) {
+      const existingNodeIds = new Set(
+        [...historyList.querySelectorAll(".history-item[data-node-id]")].map((el) => el.dataset.nodeId)
+      );
+      const existingDates = new Set(
+        [...historyList.querySelectorAll(".history-date-header .history-date-text")].map((el) => el.textContent)
+      );
+      const temp = document.createElement("div");
+      temp.innerHTML = html;
+      temp.querySelectorAll(".history-item[data-node-id]").forEach((el) => {
+        if (existingNodeIds.has(el.dataset.nodeId)) el.remove();
+      });
+      temp.querySelectorAll(".history-date-header").forEach((el) => {
+        const dateText = el.querySelector(".history-date-text")?.textContent ?? el.textContent;
+        if (existingDates.has(dateText)) el.remove();
+      });
+      historyList.append(...temp.childNodes);
+    } else {
+      historyList.innerHTML = html || '<p class="text-muted">No items found</p>';
+      historyList.addEventListener("click", handleHistoryClick);
+    }
 
-    // Event delegation for toggle and complete buttons
-    historyList.addEventListener("click", handleHistoryClick);
+    if (groups.length >= limit) {
+      btnLoadMore.dataset.currentLimit = String(limit);
+      historyLoadMore.classList.remove("hidden");
+    }
   } catch (e) {
-    historyList.innerHTML = `<p class="text-muted">${escapeHtml(e.message)}</p>`;
+    if (!append) historyList.innerHTML = `<p class="text-muted">${escapeHtml(e.message)}</p>`;
+  } finally {
+    btnLoadMore.disabled = false;
+    btnLoadMore.textContent = "Load more";
   }
 }
 
@@ -502,6 +550,43 @@ async function handleHistoryClick(e) {
       }
     } catch (err) {
       showToast(err.message, true);
+    }
+    return;
+  }
+
+  const deleteBtn = e.target.closest(".history-item-delete");
+  if (deleteBtn) {
+    const nodeId = deleteBtn.dataset.nodeId;
+    deleteBtn.disabled = true;
+    try {
+      await apiRequest(`/nodes/${encodeURIComponent(nodeId)}`, { method: "DELETE" });
+      historyList.querySelector(`.history-item[data-node-id="${nodeId}"]`)?.remove();
+    } catch (err) {
+      showToast(err.message, true);
+      deleteBtn.disabled = false;
+    }
+    return;
+  }
+
+  const datDeleteBtn = e.target.closest(".history-date-delete");
+  if (datDeleteBtn) {
+    const nodeId = datDeleteBtn.dataset.nodeId;
+    datDeleteBtn.disabled = true;
+    try {
+      await apiRequest(`/nodes/${encodeURIComponent(nodeId)}`, { method: "DELETE" });
+      const header = datDeleteBtn.closest(".history-date-header");
+      if (header) {
+        let el = header.nextElementSibling;
+        while (el && !el.classList.contains("history-date-header")) {
+          const next = el.nextElementSibling;
+          el.remove();
+          el = next;
+        }
+        header.remove();
+      }
+    } catch (err) {
+      showToast(err.message, true);
+      datDeleteBtn.disabled = false;
     }
     return;
   }
