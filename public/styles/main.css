@@ -644,6 +644,12 @@ html, body {
   gap: 8px;
 }
 
+.history-load-more {
+  display: flex;
+  justify-content: center;
+  padding: 8px 0 4px;
+}
+
 .history-date-header {
   display: flex;
   align-items: center;

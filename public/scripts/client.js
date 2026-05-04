@@ -21,6 +21,8 @@ const fontSizeValue = document.getElementById("font-size-value");
 const lineHeightSlider = document.getElementById("line-height-slider");
 const lineHeightValue = document.getElementById("line-height-value");
 const fontFamilySelect = document.getElementById("font-family-select");
+const historyLoadMore = document.getElementById("history-load-more");
+const btnLoadMore = document.getElementById("btn-load-more");
 const apiKeyInput = document.getElementById("api-key-input");
 const btnSaveApikey = document.getElementById("btn-save-apikey");
 const btnClearApikey = document.getElementById("btn-clear-apikey");
@@ -68,7 +70,12 @@ function setupMobileViewport() {
 
 function bindEvents() {
   btnSend.addEventListener("click", handleSend);
-  btnHistory.addEventListener("click", () => openModal(modalHistory, loadHistory));
+  btnHistory.addEventListener("click", () => openModal(modalHistory, () => loadHistory(7)));
+  btnLoadMore.addEventListener("click", () => {
+    const current = parseInt(btnLoadMore.dataset.currentLimit || "7", 10);
+    btnLoadMore.innerHTML = '<div class="spinner"></div>';
+    loadHistory(current + 7, true);
+  });
   btnSettings.addEventListener("click", () => {
     updateApiKeyUI();
     renderDestinationList();
@@ -349,20 +356,24 @@ async function handleSend() {
 }
 
 // History
-async function loadHistory() {
+async function loadHistory(limit = 7, append = false) {
   const dest = getSelectedDestination();
   if (!dest) {
     historyList.innerHTML = '<p class="text-muted">No destination selected</p>';
     return;
   }
 
-  historyList.innerHTML = '<div class="spinner"></div>';
+  if (!append) {
+    historyList.innerHTML = '<div class="spinner"></div>';
+    historyLoadMore.classList.add("hidden");
+  }
+  btnLoadMore.disabled = true;
   try {
     const groups = await apiRequest(
-      `/history?parent_id=${encodeURIComponent(dest.nodeId)}&daily_note=${dest.dailyNoteEnabled}`
+      `/history?parent_id=${encodeURIComponent(dest.nodeId)}&daily_note=${dest.dailyNoteEnabled}&limit=${limit}`
     );
     if (!groups.length) {
-      historyList.innerHTML = '<p class="text-muted">No items found</p>';
+      if (!append) historyList.innerHTML = '<p class="text-muted">No items found</p>';
       return;
     }
 
@@ -439,12 +450,37 @@ async function loadHistory() {
         })
         .join("");
     }
-    historyList.innerHTML = html || '<p class="text-muted">No items found</p>';
+    if (append) {
+      const existingNodeIds = new Set(
+        [...historyList.querySelectorAll(".history-item[data-node-id]")].map((el) => el.dataset.nodeId)
+      );
+      const existingDates = new Set(
+        [...historyList.querySelectorAll(".history-date-header .history-date-text")].map((el) => el.textContent)
+      );
+      const temp = document.createElement("div");
+      temp.innerHTML = html;
+      temp.querySelectorAll(".history-item[data-node-id]").forEach((el) => {
+        if (existingNodeIds.has(el.dataset.nodeId)) el.remove();
+      });
+      temp.querySelectorAll(".history-date-header").forEach((el) => {
+        const dateText = el.querySelector(".history-date-text")?.textContent ?? el.textContent;
+        if (existingDates.has(dateText)) el.remove();
+      });
+      historyList.append(...temp.childNodes);
+    } else {
+      historyList.innerHTML = html || '<p class="text-muted">No items found</p>';
+      historyList.addEventListener("click", handleHistoryClick);
+    }
 
-    // Event delegation for toggle and complete buttons
-    historyList.addEventListener("click", handleHistoryClick);
+    if (groups.length >= limit) {
+      btnLoadMore.dataset.currentLimit = String(limit);
+      historyLoadMore.classList.remove("hidden");
+    }
   } catch (e) {
-    historyList.innerHTML = `<p class="text-muted">${escapeHtml(e.message)}</p>`;
+    if (!append) historyList.innerHTML = `<p class="text-muted">${escapeHtml(e.message)}</p>`;
+  } finally {
+    btnLoadMore.disabled = false;
+    btnLoadMore.textContent = "Load more";
   }
 }
 
