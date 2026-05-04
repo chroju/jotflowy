@@ -377,11 +377,21 @@ async function loadHistory(limit = 7, append = false) {
       return;
     }
 
+    const trashIcon = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <polyline points="3 6 5 6 21 6" />
+      <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+      <path d="M10 11v6M14 11v6" />
+      <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
+    </svg>`;
+
     let html = "";
     for (const group of groups) {
       if (group.date) {
         const dateWfUrl = group.dateId ? `https://workflowy.com/#/${group.dateId}` : null;
         const dateText = escapeHtml(stripHtml(group.date));
+        const dateDeleteBtn = group.dateId
+          ? `<button class="history-date-delete" data-node-id="${group.dateId}" title="Delete date group">${trashIcon}</button>`
+          : "";
         html += dateWfUrl
           ? `<div class="history-date-header">
               <span class="history-date-text">${dateText}</span>
@@ -392,6 +402,7 @@ async function loadHistory(limit = 7, append = false) {
                   <line x1="10" y1="14" x2="21" y2="3" />
                 </svg>
               </a>
+              ${dateDeleteBtn}
             </div>`
           : `<div class="history-date-header">${dateText}</div>`;
       }
@@ -445,6 +456,7 @@ async function loadHistory(limit = 7, append = false) {
                   <line x1="10" y1="14" x2="21" y2="3" />
                 </svg>
               </a>
+              <button class="history-item-delete" data-node-id="${node.id}" title="Delete">${trashIcon}</button>
             </div>
           `;
         })
@@ -538,6 +550,43 @@ async function handleHistoryClick(e) {
       }
     } catch (err) {
       showToast(err.message, true);
+    }
+    return;
+  }
+
+  const deleteBtn = e.target.closest(".history-item-delete");
+  if (deleteBtn) {
+    const nodeId = deleteBtn.dataset.nodeId;
+    deleteBtn.disabled = true;
+    try {
+      await apiRequest(`/nodes/${encodeURIComponent(nodeId)}`, { method: "DELETE" });
+      historyList.querySelector(`.history-item[data-node-id="${nodeId}"]`)?.remove();
+    } catch (err) {
+      showToast(err.message, true);
+      deleteBtn.disabled = false;
+    }
+    return;
+  }
+
+  const datDeleteBtn = e.target.closest(".history-date-delete");
+  if (datDeleteBtn) {
+    const nodeId = datDeleteBtn.dataset.nodeId;
+    datDeleteBtn.disabled = true;
+    try {
+      await apiRequest(`/nodes/${encodeURIComponent(nodeId)}`, { method: "DELETE" });
+      const header = datDeleteBtn.closest(".history-date-header");
+      if (header) {
+        let el = header.nextElementSibling;
+        while (el && !el.classList.contains("history-date-header")) {
+          const next = el.nextElementSibling;
+          el.remove();
+          el = next;
+        }
+        header.remove();
+      }
+    } catch (err) {
+      showToast(err.message, true);
+      datDeleteBtn.disabled = false;
     }
     return;
   }
