@@ -43,6 +43,39 @@ export function stripHtml(html) {
   return div.textContent || "";
 }
 
+// Sanitize HTML: allow only <a> tags with safe href (http/https), strip everything else
+export function sanitizeHtml(html) {
+  const div = document.createElement("div");
+  div.innerHTML = html;
+
+  const walk = (node) => {
+    const children = Array.from(node.childNodes);
+    for (const child of children) {
+      if (child.nodeType === Node.TEXT_NODE) continue;
+      if (child.nodeType === Node.ELEMENT_NODE && child.tagName === "A") {
+        const href = child.getAttribute("href") || "";
+        if (/^https?:\/\//i.test(href)) {
+          // Keep only href, add safe attributes
+          const safe = document.createElement("a");
+          safe.href = href;
+          safe.target = "_blank";
+          safe.rel = "noopener noreferrer";
+          safe.textContent = child.textContent;
+          child.replaceWith(safe);
+        } else {
+          child.replaceWith(document.createTextNode(child.textContent));
+        }
+      } else {
+        // Replace non-<a> elements with their text content
+        child.replaceWith(document.createTextNode(child.textContent));
+      }
+    }
+  };
+
+  walk(div);
+  return div.innerHTML;
+}
+
 export const FONT_FAMILY_MAP = {
   gothic: '"Yu Gothic", "游ゴシック", YuGothic, "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Noto Sans CJK JP", "Noto Sans JP", -apple-system, BlinkMacSystemFont, sans-serif',
   hiragino: '"Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic", "游ゴシック", YuGothic, "Noto Sans CJK JP", "Noto Sans JP", -apple-system, BlinkMacSystemFont, sans-serif',

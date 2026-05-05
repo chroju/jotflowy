@@ -1,4 +1,4 @@
-import { applyTemplate, parseContent, escapeRegex, escapeHtml, stripHtml, applyTypographySettings, FONT_FAMILY_MAP } from "./utils.js";
+import { applyTemplate, parseContent, escapeRegex, escapeHtml, stripHtml, sanitizeHtml, applyTypographySettings, FONT_FAMILY_MAP } from "./utils.js";
 
 // State
 let settings = loadSettings();
@@ -409,7 +409,9 @@ async function loadHistory(limit = 7, append = false) {
       if (!group.items.length) continue;
       html += group.items
         .map((node) => {
-          const text = stripHtml(node.name || "").slice(0, 100);
+          const rawName = node.name || "";
+          const textContent = stripHtml(rawName);
+          const text = textContent.length > 100 ? sanitizeHtml(stripHtml(rawName).slice(0, 100)) : sanitizeHtml(rawName);
           const note = node.note ? stripHtml(node.note) : "";
           const wfUrl = `https://workflowy.com/#/${node.id}`;
           const isCompleted = node.completedAt !== null;
@@ -445,7 +447,7 @@ async function loadHistory(limit = 7, append = false) {
             <div class="history-item${completedClass}" data-node-id="${node.id}">
               ${toggleBtn}
               <div class="history-item-content">
-                <div class="history-item-text">${escapeHtml(text)}</div>
+                <div class="history-item-text">${text}</div>
                 ${noteHtml}
               </div>
               ${completeBtn}
