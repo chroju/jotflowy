@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 
 // Import utils - we'll need to handle ES modules
 // Since utils.js uses DOM APIs, we need jsdom environment (configured in vitest.config.ts)
-const { applyTemplate, parseContent, escapeRegex, escapeHtml, stripHtml } = await import(
+const { applyTemplate, parseContent, escapeRegex, escapeHtml, stripHtml, sanitizeHtml } = await import(
   "../../public/scripts/utils.js"
 );
 
@@ -117,5 +117,39 @@ describe("stripHtml", () => {
 
   it("handles empty string", () => {
     expect(stripHtml("")).toBe("");
+  });
+});
+
+describe("sanitizeHtml", () => {
+  it("preserves <a> tags with href", () => {
+    expect(sanitizeHtml('<a href="https://example.com">link</a>')).toBe(
+      '<a href="https://example.com" target="_blank" rel="noopener noreferrer">link</a>'
+    );
+  });
+
+  it("strips non-<a> tags but keeps text", () => {
+    expect(sanitizeHtml("<b>bold</b>")).toBe("bold");
+    expect(sanitizeHtml("<script>alert(1)</script>")).toBe("alert(1)");
+  });
+
+  it("strips dangerous attributes from <a> tags", () => {
+    expect(sanitizeHtml('<a href="javascript:alert(1)">bad</a>')).toBe("bad");
+    expect(sanitizeHtml('<a href="https://example.com" onclick="evil()">link</a>')).toBe(
+      '<a href="https://example.com" target="_blank" rel="noopener noreferrer">link</a>'
+    );
+  });
+
+  it("handles mixed content", () => {
+    expect(sanitizeHtml('text <a href="https://example.com">link</a> more text')).toBe(
+      'text <a href="https://example.com" target="_blank" rel="noopener noreferrer">link</a> more text'
+    );
+  });
+
+  it("handles plain text", () => {
+    expect(sanitizeHtml("plain text")).toBe("plain text");
+  });
+
+  it("handles empty string", () => {
+    expect(sanitizeHtml("")).toBe("");
   });
 });
