@@ -91,21 +91,21 @@ describe("GET /api/history", () => {
       expect(data.length).toBeLessThanOrEqual(7);
     });
 
-    it("respects limit query parameter", async () => {
+    it("respects before_date query parameter", async () => {
       const dateNodes = Array.from({ length: 10 }, (_, i) => {
-        const d = String(i + 1).padStart(2, "0");
+        const d = String(10 - i).padStart(2, "0");
         return makeNode({ id: `date-${i}`, name: `[2026-01-${d}]`, priority: i });
       });
       mockGetNodes
         .mockResolvedValueOnce(dateNodes)
         .mockResolvedValue([makeNode()]);
 
-      const req = makeRequest("/api/history?parent_id=parent-1&daily_note=true&limit=3");
+      const req = makeRequest("/api/history?parent_id=parent-1&daily_note=true&before_date=2026-01-05");
       const res = await app.fetch(req, testEnv);
       const data = await res.json() as unknown[];
 
       expect(res.status).toBe(200);
-      expect(data).toHaveLength(3);
+      expect(data).toHaveLength(4); // 2026-01-04, 03, 02, 01
     });
 
     it("excludes date groups with no child nodes", async () => {
