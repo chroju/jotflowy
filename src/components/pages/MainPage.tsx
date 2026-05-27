@@ -4,12 +4,9 @@ export const MainPage: FC = () => (
   <div id="app">
     <div id="toast" class="toast hidden"></div>
     <main class="main">
-      <textarea
-        id="editor"
-        class="editor"
-        placeholder="Type your note here...&#10;&#10;(Empty line separates name and note)"
-        autofocus
-      ></textarea>
+      <div id="history-list" class="history-list">
+        <p class="text-muted">Loading...</p>
+      </div>
     </main>
     <footer class="toolbar">
       <div class="toolbar-left">
@@ -24,12 +21,9 @@ export const MainPage: FC = () => (
         <button id="btn-settings" class="btn" title="Settings">
           <iconify-icon icon="heroicons:cog-6-tooth" width="20" height="20"></iconify-icon>
         </button>
-        <button id="btn-history" class="btn" title="History">
-          <iconify-icon icon="heroicons:clock" width="20" height="20"></iconify-icon>
-        </button>
-        <button id="btn-send" class="btn btn-send" title="Send">
-          <iconify-icon icon="heroicons:paper-airplane" width="16" height="16"></iconify-icon>
-          Send
+        <button id="btn-compose" class="btn btn-send" title="New note">
+          <iconify-icon icon="heroicons:pencil-square" width="16" height="16"></iconify-icon>
+          New note
         </button>
       </div>
     </footer>
@@ -126,21 +120,24 @@ export const MainPage: FC = () => (
       </div>
     </div>
 
-    {/* History Modal */}
-    <div id="modal-history" class="modal hidden">
+    {/* Compose Modal */}
+    <div id="modal-compose" class="modal hidden">
       <div class="modal-backdrop"></div>
       <div class="modal-content">
         <div class="modal-header">
-          <h2>History</h2>
-          <button class="modal-close" data-close-modal="modal-history">&times;</button>
+          <h2>New note</h2>
+          <button class="modal-close" data-close-modal="modal-compose">&times;</button>
         </div>
         <div class="modal-body">
-          <div id="history-list" class="history-list">
-            <p class="text-muted">Loading...</p>
-          </div>
-          <div id="history-load-more" class="history-load-more hidden">
-            <button id="btn-load-more" class="btn btn-small">Load more</button>
-          </div>
+          <textarea
+            id="editor"
+            class="editor compose-editor"
+            placeholder="Type your note here...&#10;&#10;(Empty line separates name and note)"
+          ></textarea>
+          <button id="btn-send" class="btn btn-send btn-small">
+            <iconify-icon icon="heroicons:paper-airplane" width="14" height="14"></iconify-icon>
+            Send
+          </button>
         </div>
       </div>
     </div>

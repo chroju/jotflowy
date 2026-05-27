@@ -7,7 +7,7 @@ let isAuthenticated = false;
 // DOM elements
 const editor = document.getElementById("editor");
 const btnSend = document.getElementById("btn-send");
-const btnHistory = document.getElementById("btn-history");
+const btnCompose = document.getElementById("btn-compose");
 const btnSettings = document.getElementById("btn-settings");
 const destinationSelector = document.getElementById("destination-selector");
 const destinationLabel = document.getElementById("destination-label");
@@ -21,8 +21,6 @@ const fontSizeValue = document.getElementById("font-size-value");
 const lineHeightSlider = document.getElementById("line-height-slider");
 const lineHeightValue = document.getElementById("line-height-value");
 const fontFamilySelect = document.getElementById("font-family-select");
-const historyLoadMore = document.getElementById("history-load-more");
-const btnLoadMore = document.getElementById("btn-load-more");
 const apiKeyInput = document.getElementById("api-key-input");
 const btnSaveApikey = document.getElementById("btn-save-apikey");
 const btnClearApikey = document.getElementById("btn-clear-apikey");
@@ -39,8 +37,10 @@ const destDefaultText = document.getElementById("dest-default-text");
 const btnSaveDestination = document.getElementById("btn-save-destination");
 const btnCancelDestination = document.getElementById("btn-cancel-destination");
 
-// History modal
-const modalHistory = document.getElementById("modal-history");
+// Compose modal
+const modalCompose = document.getElementById("modal-compose");
+
+// History
 const historyList = document.getElementById("history-list");
 
 let selectedNodeId = null;
@@ -54,6 +54,7 @@ async function init() {
   bindEvents();
   setupMobileViewport();
   await checkAuth();
+  loadHistory();
 }
 
 // Handle mobile keyboard viewport
@@ -70,12 +71,7 @@ function setupMobileViewport() {
 
 function bindEvents() {
   btnSend.addEventListener("click", handleSend);
-  btnHistory.addEventListener("click", () => openModal(modalHistory, () => loadHistory(7)));
-  btnLoadMore.addEventListener("click", () => {
-    const current = parseInt(btnLoadMore.dataset.currentLimit || "7", 10);
-    btnLoadMore.innerHTML = '<div class="spinner"></div>';
-    loadHistory(current + 7, true);
-  });
+  btnCompose.addEventListener("click", () => openModal(modalCompose, () => editor.focus()));
   btnSettings.addEventListener("click", () => {
     updateApiKeyUI();
     renderDestinationList();
@@ -214,7 +210,8 @@ function toggleDestinationDropdown() {
       saveSettings();
       updateDestinationLabel();
       destinationDropdown.classList.add("hidden");
-        });
+      loadHistory();
+    });
     destinationDropdown.appendChild(item);
   }
   destinationDropdown.classList.remove("hidden");
@@ -347,12 +344,165 @@ async function handleSend() {
     });
 
     editor.value = "";
+    modalCompose.classList.add("hidden");
     showToast("Sent!");
+    loadHistory();
   } catch (e) {
     showToast(e.message, true);
   } finally {
     btnSend.disabled = false;
   }
+}
+
+// History rendering
+let historyObserver = null;
+
+function setupInfiniteScroll(beforeDate) {
+  if (historyObserver) historyObserver.disconnect();
+
+  const sentinel = document.createElement("div");
+  sentinel.className = "history-sentinel";
+  historyList.appendChild(sentinel);
+
+  let loading = false;
+  historyObserver = new IntersectionObserver(async (entries) => {
+    if (!entries[0].isIntersecting || loading) return;
+    loading = true;
+    sentinel.innerHTML = '<div class="spinner"></div>';
+    try {
+      await loadMoreHistory(beforeDate);
+    } finally {
+      loading = false;
+    }
+  });
+  historyObserver.observe(sentinel);
+}
+
+async function loadMoreHistory(beforeDate) {
+  const dest = getSelectedDestination();
+  if (!dest || !dest.dailyNoteEnabled) return;
+
+  const sentinel = historyList.querySelector(".history-sentinel");
+  try {
+    const groups = await apiRequest(
+      `/history?parent_id=${encodeURIComponent(dest.nodeId)}&daily_note=true&before_date=${encodeURIComponent(beforeDate)}`
+    );
+    if (sentinel) sentinel.remove();
+    if (historyObserver) { historyObserver.disconnect(); historyObserver = null; }
+
+    if (!groups.length) return;
+
+    const trashIcon = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <polyline points="3 6 5 6 21 6" />
+      <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+      <path d="M10 11v6M14 11v6" />
+      <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
+    </svg>`;
+
+    let html = "";
+    for (const group of groups) {
+      if (group.date) {
+        const dateWfUrl = group.dateId ? `https://workflowy.com/#/${group.dateId}` : null;
+        const dateText = escapeHtml(stripHtml(group.date));
+        const dateDeleteBtn = group.dateId
+          ? `<button class="history-date-delete" data-node-id="${group.dateId}" title="Delete date group">${trashIcon}</button>`
+          : "";
+        html += dateWfUrl
+          ? `<div class="history-date-header">
+              <span class="history-date-text">${dateText}</span>
+              <a href="${dateWfUrl}" target="_blank" class="history-date-link" title="Open in Workflowy">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+                  <polyline points="15 3 21 3 21 9" />
+                  <line x1="10" y1="14" x2="21" y2="3" />
+                </svg>
+              </a>
+              ${dateDeleteBtn}
+            </div>`
+          : `<div class="history-date-header">${dateText}</div>`;
+      }
+      if (!group.items.length) continue;
+      html += group.items
+        .map((node) => {
+          const rawName = node.name || "";
+          const textContent = stripHtml(rawName);
+          const text = textContent.length > 100 ? sanitizeHtml(stripHtml(rawName).slice(0, 100)) : sanitizeHtml(rawName);
+          const note = node.note ? stripHtml(node.note) : "";
+          const wfUrl = `https://workflowy.com/#/${node.id}`;
+          const isCompleted = node.completedAt !== null;
+          const completedClass = isCompleted ? " completed" : "";
+          const hasNote = note.length > 0;
+
+          const toggleBtn = hasNote
+            ? `<button class="history-item-toggle" data-node-id="${node.id}" title="Toggle note">
+                <svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor">
+                  <polygon points="2,0 8,5 2,10" />
+                </svg>
+              </button>`
+            : `<span class="history-item-toggle-spacer"></span>`;
+
+          const noteHtml = hasNote
+            ? `<div class="history-item-note hidden" data-note-for="${node.id}">${escapeHtml(note)}</div>`
+            : "";
+
+          const completeBtn = isCompleted
+            ? `<button class="history-item-uncomplete" data-node-id="${node.id}" title="Mark as incomplete">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M3 12a9 9 0 1 0 18 0 9 9 0 1 0 -18 0" />
+                  <path d="M9 12l2 2l4 -4" />
+                </svg>
+              </button>`
+            : `<button class="history-item-complete" data-node-id="${node.id}" title="Mark as complete">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="12" cy="12" r="9" />
+                </svg>
+              </button>`;
+
+          return `
+            <div class="history-item${completedClass}" data-node-id="${node.id}">
+              ${toggleBtn}
+              <div class="history-item-content">
+                <div class="history-item-text">${text}</div>
+                ${noteHtml}
+              </div>
+              ${completeBtn}
+              <a href="${wfUrl}" target="_blank" class="history-item-link" title="Open in Workflowy">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+                  <polyline points="15 3 21 3 21 9" />
+                  <line x1="10" y1="14" x2="21" y2="3" />
+                </svg>
+              </a>
+              <button class="history-item-delete" data-node-id="${node.id}" title="Delete">${trashIcon}</button>
+            </div>
+          `;
+        })
+        .join("");
+    }
+
+    const container = document.createElement("div");
+    container.innerHTML = html;
+    historyList.append(...container.childNodes);
+
+    const last = groups[groups.length - 1];
+    if (last.hasMore) {
+      const nextBeforeDate = parseDateText(last.date || "");
+      if (nextBeforeDate) setupInfiniteScroll(nextBeforeDate);
+    }
+  } catch (e) {
+    if (sentinel) sentinel.innerHTML = `<p class="text-muted">${escapeHtml(e.message)}</p>`;
+  }
+}
+
+function parseDateText(text) {
+  const bracketMatch = text.match(/\[(\d{4}-\d{2}-\d{2})\]/);
+  if (bracketMatch) return bracketMatch[1];
+  const wfMatch = text.match(/\w{3}, (\w{3}) (\d{1,2}), (\d{4})/);
+  if (wfMatch) {
+    const months = { Jan:"01",Feb:"02",Mar:"03",Apr:"04",May:"05",Jun:"06",Jul:"07",Aug:"08",Sep:"09",Oct:"10",Nov:"11",Dec:"12" };
+    return `${wfMatch[3]}-${months[wfMatch[1]]}-${wfMatch[2].padStart(2,"0")}`;
+  }
+  return null;
 }
 
 // History
@@ -363,17 +513,14 @@ async function loadHistory(limit = 7, append = false) {
     return;
   }
 
-  if (!append) {
-    historyList.innerHTML = '<div class="spinner"></div>';
-    historyLoadMore.classList.add("hidden");
-  }
-  btnLoadMore.disabled = true;
+  if (historyObserver) { historyObserver.disconnect(); historyObserver = null; }
+  historyList.innerHTML = '<div class="spinner"></div>';
   try {
     const groups = await apiRequest(
-      `/history?parent_id=${encodeURIComponent(dest.nodeId)}&daily_note=${dest.dailyNoteEnabled}&limit=${limit}`
+      `/history?parent_id=${encodeURIComponent(dest.nodeId)}&daily_note=${dest.dailyNoteEnabled}`
     );
     if (!groups.length) {
-      if (!append) historyList.innerHTML = '<p class="text-muted">No items found</p>';
+      historyList.innerHTML = '<p class="text-muted">No items found</p>';
       return;
     }
 
@@ -464,37 +611,16 @@ async function loadHistory(limit = 7, append = false) {
         })
         .join("");
     }
-    if (append) {
-      const existingNodeIds = new Set(
-        [...historyList.querySelectorAll(".history-item[data-node-id]")].map((el) => el.dataset.nodeId)
-      );
-      const existingDates = new Set(
-        [...historyList.querySelectorAll(".history-date-header .history-date-text")].map((el) => el.textContent)
-      );
-      const temp = document.createElement("div");
-      temp.innerHTML = html;
-      temp.querySelectorAll(".history-item[data-node-id]").forEach((el) => {
-        if (existingNodeIds.has(el.dataset.nodeId)) el.remove();
-      });
-      temp.querySelectorAll(".history-date-header").forEach((el) => {
-        const dateText = el.querySelector(".history-date-text")?.textContent ?? el.textContent;
-        if (existingDates.has(dateText)) el.remove();
-      });
-      historyList.append(...temp.childNodes);
-    } else {
-      historyList.innerHTML = html || '<p class="text-muted">No items found</p>';
-      historyList.addEventListener("click", handleHistoryClick);
-    }
+    historyList.innerHTML = html || '<p class="text-muted">No items found</p>';
+    historyList.addEventListener("click", handleHistoryClick);
 
-    if (groups.length >= limit) {
-      btnLoadMore.dataset.currentLimit = String(limit);
-      historyLoadMore.classList.remove("hidden");
+    const last = groups[groups.length - 1];
+    if (last.hasMore && dest.dailyNoteEnabled) {
+      const nextBeforeDate = parseDateText(last.date || "");
+      if (nextBeforeDate) setupInfiniteScroll(nextBeforeDate);
     }
   } catch (e) {
-    if (!append) historyList.innerHTML = `<p class="text-muted">${escapeHtml(e.message)}</p>`;
-  } finally {
-    btnLoadMore.disabled = false;
-    btnLoadMore.textContent = "Load more";
+    historyList.innerHTML = `<p class="text-muted">${escapeHtml(e.message)}</p>`;
   }
 }
 
@@ -784,11 +910,11 @@ function handleShareTarget() {
       const displayTitle = title || fetchedTitle || url;
       const current = editor.value;
       editor.value = current + `[${displayTitle}](${url})`;
-      editor.focus();
+      openModal(modalCompose, () => editor.focus());
     });
   } else if (text) {
     editor.value = (editor.value || "") + text;
-    editor.focus();
+    openModal(modalCompose, () => editor.focus());
   }
 
   // Clean URL

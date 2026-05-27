@@ -55,7 +55,6 @@ export function sanitizeHtml(html) {
       if (child.nodeType === Node.ELEMENT_NODE && child.tagName === "A") {
         const href = child.getAttribute("href") || "";
         if (/^https?:\/\//i.test(href)) {
-          // Keep only href, add safe attributes
           const safe = document.createElement("a");
           safe.href = href;
           safe.target = "_blank";
@@ -66,7 +65,6 @@ export function sanitizeHtml(html) {
           child.replaceWith(document.createTextNode(child.textContent));
         }
       } else {
-        // Replace non-<a> elements with their text content
         child.replaceWith(document.createTextNode(child.textContent));
       }
     }

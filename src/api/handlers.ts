@@ -3,6 +3,7 @@ import { cors } from "hono/cors";
 import { setCookie, getCookie } from "hono/cookie";
 import { WorkflowyClient } from "./workflowy-v1";
 import { encrypt, decrypt } from "./crypto";
+import { filterDailyNotesByBeforeDate, parseDateFromNodeName } from "./history";
 import type { Env } from "../types";
 
 type AppEnv = { Bindings: Env };
@@ -110,53 +111,29 @@ api.get("/history", async (c) => {
   if (!parentId) return c.json({ error: "parent_id required" }, 400);
 
   const dailyNote = c.req.query("daily_note") === "true";
-  const limit = Math.max(1, parseInt(c.req.query("limit") || "7", 10) || 7);
+  const beforeDate = c.req.query("before_date") || null;
   const client = new WorkflowyClient(apiKey);
 
   if (dailyNote) {
     const dateNodes = await client.getNodes(parentId);
+    const recent = filterDailyNotesByBeforeDate(dateNodes, beforeDate);
 
-    // priorityベースで候補を絞り込み（上位limit*2件）
-    const candidates = dateNodes.sort((a, b) => b.priority - a.priority).slice(0, limit * 2);
-
-    // 日付文字列でソート（降順）してlimit件取得
-    // [YYYY-MM-DD]形式とWorkflowy形式（Mon, Jan 1, 2026）の両方に対応
-    const sorted = candidates
-      .map((node) => {
-        const name = node.name || "";
-        const bracketMatch = name.match(/\[(\d{4}-\d{2}-\d{2})\]/);
-        if (bracketMatch) {
-          return { node, dateStr: bracketMatch[1] };
-        }
-        const workflowyMatch = name.match(/\w{3}, (\w{3}) (\d{1,2}), (\d{4})/);
-        if (workflowyMatch) {
-          const months: Record<string, string> = {
-            Jan: "01", Feb: "02", Mar: "03", Apr: "04", May: "05", Jun: "06",
-            Jul: "07", Aug: "08", Sep: "09", Oct: "10", Nov: "11", Dec: "12",
-          };
-          const month = months[workflowyMatch[1]] || "01";
-          const day = workflowyMatch[2].padStart(2, "0");
-          const year = workflowyMatch[3];
-          return { node, dateStr: `${year}-${month}-${day}` };
-        }
-        return { node, dateStr: null };
-      })
-      .filter((item): item is { node: typeof candidates[0]; dateStr: string } => item.dateStr !== null)
-      .sort((a, b) => b.dateStr.localeCompare(a.dateStr))
-      .map((item) => item.node);
-
-    const results: { date: string; dateId: string; items: typeof dateNodes }[] = [];
-    for (const dateNode of sorted) {
-      if (results.length >= limit) break;
+    const results: { date: string; dateId: string; items: typeof dateNodes; hasMore: boolean }[] = [];
+    for (const dateNode of recent) {
       const children = await client.getNodes(dateNode.id);
       if (children.length === 0) continue;
-      results.push({ date: dateNode.name, dateId: dateNode.id, items: children });
+      results.push({ date: dateNode.name, dateId: dateNode.id, items: children, hasMore: false });
     }
+
+    const oldestDate = recent.length > 0 ? parseDateFromNodeName(recent[recent.length - 1].name || "") : null;
+    const hasMore = oldestDate !== null && filterDailyNotesByBeforeDate(dateNodes, oldestDate).length > 0;
+    if (results.length > 0) results[results.length - 1].hasMore = hasMore;
+
     return c.json(results);
   }
 
   const nodes = await client.getNodes(parentId);
-  return c.json(nodes.map((n) => ({ date: null, items: [n] })));
+  return c.json(nodes.map((n) => ({ date: null, items: [n], hasMore: false })));
 });
 
 // Complete node
