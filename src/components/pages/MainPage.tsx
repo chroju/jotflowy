@@ -21,12 +21,13 @@ export const MainPage: FC = () => (
         <button id="btn-settings" class="btn" title="Settings">
           <iconify-icon icon="heroicons:cog-6-tooth" width="20" height="20"></iconify-icon>
         </button>
-        <button id="btn-compose" class="btn btn-send" title="New note">
-          <iconify-icon icon="heroicons:pencil-square" width="16" height="16"></iconify-icon>
-          New note
-        </button>
       </div>
     </footer>
+
+    {/* Compose FAB */}
+    <button id="btn-compose" class="btn-compose-fab" title="New note">
+      <iconify-icon icon="heroicons:pencil-square" width="24" height="24"></iconify-icon>
+    </button>
 
     {/* Settings Modal */}
     <div id="modal-settings" class="modal hidden">
