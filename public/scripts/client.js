@@ -230,6 +230,37 @@ function saveSettings() {
   localStorage.setItem("jotflowy_settings", JSON.stringify(settings));
 }
 
+function getHistoryCache(destinationId) {
+  try {
+    const raw = localStorage.getItem("jotflowy_history_cache");
+    if (!raw) return null;
+    const entry = JSON.parse(raw)[destinationId];
+    if (!entry || !entry.groups) return null;
+    return entry.groups;
+  } catch {
+    return null;
+  }
+}
+
+function setHistoryCache(destinationId, groups) {
+  try {
+    const raw = localStorage.getItem("jotflowy_history_cache");
+    const cache = raw ? JSON.parse(raw) : {};
+    cache[destinationId] = { groups, timestamp: Date.now() };
+    localStorage.setItem("jotflowy_history_cache", JSON.stringify(cache));
+  } catch {}
+}
+
+function clearHistoryCache(destinationId) {
+  try {
+    const raw = localStorage.getItem("jotflowy_history_cache");
+    if (!raw) return;
+    const cache = JSON.parse(raw);
+    delete cache[destinationId];
+    localStorage.setItem("jotflowy_history_cache", JSON.stringify(cache));
+  } catch {}
+}
+
 function getSelectedDestination() {
   return settings.destinations.find((d) => d.id === settings.selectedDestinationId) || null;
 }
@@ -328,11 +359,10 @@ async function handleSend() {
     const { name, note } = parseContent(expandedText);
     const finalName = dest.defaultText ? applyTemplate(dest.defaultText, name) : name;
 
-    // ローカル日付を生成（サーバー側UTCとの差異を回避）
     const now = new Date();
     const localDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
 
-    await apiRequest("/send", {
+    const result = await apiRequest("/send", {
       method: "POST",
       body: JSON.stringify({
         destinationId: dest.nodeId,
@@ -346,7 +376,9 @@ async function handleSend() {
     editor.value = "";
     modalCompose.classList.add("hidden");
     showToast("Sent!");
-    loadHistory();
+
+    optimisticInsert(dest, finalName, note || null, localDate, result.item_id);
+    refreshHistoryInBackground(dest);
   } catch (e) {
     showToast(e.message, true);
   } finally {
@@ -354,7 +386,183 @@ async function handleSend() {
   }
 }
 
+function optimisticInsert(dest, name, note, localDate, itemId) {
+  const tempNode = {
+    id: itemId || `temp-${Date.now()}`,
+    name,
+    note,
+    priority: -1,
+    createdAt: Date.now(),
+    modifiedAt: Date.now(),
+    completedAt: null,
+  };
+
+  let groups = getHistoryCache(dest.id) || [];
+
+  if (dest.dailyNoteEnabled) {
+    const todayIndex = groups.findIndex((g) => {
+      if (!g.date) return false;
+      return parseDateText(g.date) === localDate;
+    });
+
+    if (todayIndex >= 0) {
+      groups[todayIndex].items.push(tempNode);
+    } else {
+      groups.unshift({
+        date: `[${localDate}]`,
+        dateId: null,
+        items: [tempNode],
+        hasMore: false,
+      });
+    }
+  } else {
+    if (groups.length > 0) {
+      groups[0].items.unshift(tempNode);
+    } else {
+      groups = [{ date: null, dateId: null, items: [tempNode], hasMore: false }];
+    }
+  }
+
+  setHistoryCache(dest.id, groups);
+  renderHistoryFromGroups(groups, dest);
+}
+
+async function refreshHistoryInBackground(dest) {
+  try {
+    const groups = await apiRequest(
+      `/history?parent_id=${encodeURIComponent(dest.nodeId)}&daily_note=${dest.dailyNoteEnabled}`
+    );
+    setHistoryCache(dest.id, groups);
+    if (getSelectedDestination()?.id === dest.id) {
+      renderHistoryFromGroups(groups, dest);
+    }
+  } catch {
+    // Silent failure -- POST already succeeded, optimistic view is showing
+  }
+}
+
 // History rendering
+const trashIcon = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <polyline points="3 6 5 6 21 6" />
+  <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+  <path d="M10 11v6M14 11v6" />
+  <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
+</svg>`;
+
+function renderHistoryGroupsHtml(groups) {
+  let html = "";
+  for (const group of groups) {
+    if (group.date) {
+      const dateWfUrl = group.dateId ? `https://workflowy.com/#/${group.dateId}` : null;
+      const dateText = escapeHtml(stripHtml(group.date));
+      const dateDeleteBtn = group.dateId
+        ? `<button class="history-date-delete" data-node-id="${group.dateId}" title="Delete date group">${trashIcon}</button>`
+        : "";
+      html += dateWfUrl
+        ? `<div class="history-date-header">
+            <span class="history-date-text">${dateText}</span>
+            <a href="${dateWfUrl}" target="_blank" class="history-date-link" title="Open in Workflowy">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+                <polyline points="15 3 21 3 21 9" />
+                <line x1="10" y1="14" x2="21" y2="3" />
+              </svg>
+            </a>
+            ${dateDeleteBtn}
+          </div>`
+        : `<div class="history-date-header">${dateText}</div>`;
+    }
+    if (!group.items.length) continue;
+    html += group.items
+      .map((node) => {
+        const rawName = node.name || "";
+        const textContent = stripHtml(rawName);
+        const text = textContent.length > 100 ? sanitizeHtml(stripHtml(rawName).slice(0, 100)) : sanitizeHtml(rawName);
+        const note = node.note ? stripHtml(node.note) : "";
+        const wfUrl = `https://workflowy.com/#/${node.id}`;
+        const isCompleted = node.completedAt !== null;
+        const completedClass = isCompleted ? " completed" : "";
+        const hasNote = note.length > 0;
+
+        const toggleBtn = hasNote
+          ? `<button class="history-item-toggle" data-node-id="${node.id}" title="Toggle note">
+              <svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor">
+                <polygon points="2,0 8,5 2,10" />
+              </svg>
+            </button>`
+          : `<span class="history-item-toggle-spacer"></span>`;
+
+        const noteHtml = hasNote
+          ? `<div class="history-item-note hidden" data-note-for="${node.id}">${escapeHtml(note)}</div>`
+          : "";
+
+        const completeBtn = isCompleted
+          ? `<button class="history-item-uncomplete" data-node-id="${node.id}" title="Mark as incomplete">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M3 12a9 9 0 1 0 18 0 9 9 0 1 0 -18 0" />
+                <path d="M9 12l2 2l4 -4" />
+              </svg>
+            </button>`
+          : `<button class="history-item-complete" data-node-id="${node.id}" title="Mark as complete">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="9" />
+              </svg>
+            </button>`;
+
+        return `
+          <div class="history-item${completedClass}" data-node-id="${node.id}">
+            ${toggleBtn}
+            <div class="history-item-content">
+              <div class="history-item-text">${text}</div>
+              ${noteHtml}
+            </div>
+            ${completeBtn}
+            <a href="${wfUrl}" target="_blank" class="history-item-link" title="Open in Workflowy">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+                <polyline points="15 3 21 3 21 9" />
+                <line x1="10" y1="14" x2="21" y2="3" />
+              </svg>
+            </a>
+            <button class="history-item-delete" data-node-id="${node.id}" title="Delete">${trashIcon}</button>
+          </div>
+        `;
+      })
+      .join("");
+  }
+  return html;
+}
+
+function renderHistoryFromGroups(groups, dest) {
+  if (!groups.length) {
+    historyList.innerHTML = '<p class="text-muted">No items found</p>';
+    return;
+  }
+  const html = renderHistoryGroupsHtml(groups);
+  historyList.innerHTML = html || '<p class="text-muted">No items found</p>';
+  historyList.addEventListener("click", handleHistoryClick);
+
+  if (historyObserver) { historyObserver.disconnect(); historyObserver = null; }
+  const last = groups[groups.length - 1];
+  if (last.hasMore && dest.dailyNoteEnabled) {
+    const nextBeforeDate = parseDateText(last.date || "");
+    if (nextBeforeDate) setupInfiniteScroll(nextBeforeDate);
+  }
+}
+
+function showRefreshIndicator() {
+  if (document.getElementById("history-refresh-indicator")) return;
+  const indicator = document.createElement("div");
+  indicator.id = "history-refresh-indicator";
+  indicator.className = "history-refresh-indicator";
+  indicator.innerHTML = '<div class="spinner"></div>';
+  historyList.parentElement.insertBefore(indicator, historyList);
+}
+
+function hideRefreshIndicator() {
+  document.getElementById("history-refresh-indicator")?.remove();
+}
+
 let historyObserver = null;
 
 function setupInfiniteScroll(beforeDate) {
@@ -392,94 +600,7 @@ async function loadMoreHistory(beforeDate) {
 
     if (!groups.length) return;
 
-    const trashIcon = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-      <polyline points="3 6 5 6 21 6" />
-      <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
-      <path d="M10 11v6M14 11v6" />
-      <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
-    </svg>`;
-
-    let html = "";
-    for (const group of groups) {
-      if (group.date) {
-        const dateWfUrl = group.dateId ? `https://workflowy.com/#/${group.dateId}` : null;
-        const dateText = escapeHtml(stripHtml(group.date));
-        const dateDeleteBtn = group.dateId
-          ? `<button class="history-date-delete" data-node-id="${group.dateId}" title="Delete date group">${trashIcon}</button>`
-          : "";
-        html += dateWfUrl
-          ? `<div class="history-date-header">
-              <span class="history-date-text">${dateText}</span>
-              <a href="${dateWfUrl}" target="_blank" class="history-date-link" title="Open in Workflowy">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
-                  <polyline points="15 3 21 3 21 9" />
-                  <line x1="10" y1="14" x2="21" y2="3" />
-                </svg>
-              </a>
-              ${dateDeleteBtn}
-            </div>`
-          : `<div class="history-date-header">${dateText}</div>`;
-      }
-      if (!group.items.length) continue;
-      html += group.items
-        .map((node) => {
-          const rawName = node.name || "";
-          const textContent = stripHtml(rawName);
-          const text = textContent.length > 100 ? sanitizeHtml(stripHtml(rawName).slice(0, 100)) : sanitizeHtml(rawName);
-          const note = node.note ? stripHtml(node.note) : "";
-          const wfUrl = `https://workflowy.com/#/${node.id}`;
-          const isCompleted = node.completedAt !== null;
-          const completedClass = isCompleted ? " completed" : "";
-          const hasNote = note.length > 0;
-
-          const toggleBtn = hasNote
-            ? `<button class="history-item-toggle" data-node-id="${node.id}" title="Toggle note">
-                <svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor">
-                  <polygon points="2,0 8,5 2,10" />
-                </svg>
-              </button>`
-            : `<span class="history-item-toggle-spacer"></span>`;
-
-          const noteHtml = hasNote
-            ? `<div class="history-item-note hidden" data-note-for="${node.id}">${escapeHtml(note)}</div>`
-            : "";
-
-          const completeBtn = isCompleted
-            ? `<button class="history-item-uncomplete" data-node-id="${node.id}" title="Mark as incomplete">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M3 12a9 9 0 1 0 18 0 9 9 0 1 0 -18 0" />
-                  <path d="M9 12l2 2l4 -4" />
-                </svg>
-              </button>`
-            : `<button class="history-item-complete" data-node-id="${node.id}" title="Mark as complete">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <circle cx="12" cy="12" r="9" />
-                </svg>
-              </button>`;
-
-          return `
-            <div class="history-item${completedClass}" data-node-id="${node.id}">
-              ${toggleBtn}
-              <div class="history-item-content">
-                <div class="history-item-text">${text}</div>
-                ${noteHtml}
-              </div>
-              ${completeBtn}
-              <a href="${wfUrl}" target="_blank" class="history-item-link" title="Open in Workflowy">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
-                  <polyline points="15 3 21 3 21 9" />
-                  <line x1="10" y1="14" x2="21" y2="3" />
-                </svg>
-              </a>
-              <button class="history-item-delete" data-node-id="${node.id}" title="Delete">${trashIcon}</button>
-            </div>
-          `;
-        })
-        .join("");
-    }
-
+    const html = renderHistoryGroupsHtml(groups);
     const container = document.createElement("div");
     container.innerHTML = html;
     historyList.append(...container.childNodes);
@@ -506,7 +627,7 @@ function parseDateText(text) {
 }
 
 // History
-async function loadHistory(limit = 7, append = false) {
+async function loadHistory() {
   const dest = getSelectedDestination();
   if (!dest) {
     historyList.innerHTML = '<p class="text-muted">No destination selected</p>';
@@ -514,114 +635,67 @@ async function loadHistory(limit = 7, append = false) {
   }
 
   if (historyObserver) { historyObserver.disconnect(); historyObserver = null; }
-  historyList.innerHTML = '<div class="spinner"></div>';
-  try {
-    const groups = await apiRequest(
-      `/history?parent_id=${encodeURIComponent(dest.nodeId)}&daily_note=${dest.dailyNoteEnabled}`
-    );
-    if (!groups.length) {
-      historyList.innerHTML = '<p class="text-muted">No items found</p>';
-      return;
-    }
 
-    const trashIcon = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-      <polyline points="3 6 5 6 21 6" />
-      <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
-      <path d="M10 11v6M14 11v6" />
-      <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
-    </svg>`;
-
-    let html = "";
-    for (const group of groups) {
-      if (group.date) {
-        const dateWfUrl = group.dateId ? `https://workflowy.com/#/${group.dateId}` : null;
-        const dateText = escapeHtml(stripHtml(group.date));
-        const dateDeleteBtn = group.dateId
-          ? `<button class="history-date-delete" data-node-id="${group.dateId}" title="Delete date group">${trashIcon}</button>`
-          : "";
-        html += dateWfUrl
-          ? `<div class="history-date-header">
-              <span class="history-date-text">${dateText}</span>
-              <a href="${dateWfUrl}" target="_blank" class="history-date-link" title="Open in Workflowy">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
-                  <polyline points="15 3 21 3 21 9" />
-                  <line x1="10" y1="14" x2="21" y2="3" />
-                </svg>
-              </a>
-              ${dateDeleteBtn}
-            </div>`
-          : `<div class="history-date-header">${dateText}</div>`;
+  const cached = getHistoryCache(dest.id);
+  if (cached && cached.length > 0) {
+    renderHistoryFromGroups(cached, dest);
+    showRefreshIndicator();
+    try {
+      const groups = await apiRequest(
+        `/history?parent_id=${encodeURIComponent(dest.nodeId)}&daily_note=${dest.dailyNoteEnabled}`
+      );
+      setHistoryCache(dest.id, groups);
+      if (getSelectedDestination()?.id === dest.id) {
+        renderHistoryFromGroups(groups, dest);
       }
-      if (!group.items.length) continue;
-      html += group.items
-        .map((node) => {
-          const rawName = node.name || "";
-          const textContent = stripHtml(rawName);
-          const text = textContent.length > 100 ? sanitizeHtml(stripHtml(rawName).slice(0, 100)) : sanitizeHtml(rawName);
-          const note = node.note ? stripHtml(node.note) : "";
-          const wfUrl = `https://workflowy.com/#/${node.id}`;
-          const isCompleted = node.completedAt !== null;
-          const completedClass = isCompleted ? " completed" : "";
-          const hasNote = note.length > 0;
-
-          const toggleBtn = hasNote
-            ? `<button class="history-item-toggle" data-node-id="${node.id}" title="Toggle note">
-                <svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor">
-                  <polygon points="2,0 8,5 2,10" />
-                </svg>
-              </button>`
-            : `<span class="history-item-toggle-spacer"></span>`;
-
-          const noteHtml = hasNote
-            ? `<div class="history-item-note hidden" data-note-for="${node.id}">${escapeHtml(note)}</div>`
-            : "";
-
-          const completeBtn = isCompleted
-            ? `<button class="history-item-uncomplete" data-node-id="${node.id}" title="Mark as incomplete">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M3 12a9 9 0 1 0 18 0 9 9 0 1 0 -18 0" />
-                  <path d="M9 12l2 2l4 -4" />
-                </svg>
-              </button>`
-            : `<button class="history-item-complete" data-node-id="${node.id}" title="Mark as complete">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <circle cx="12" cy="12" r="9" />
-                </svg>
-              </button>`;
-
-          return `
-            <div class="history-item${completedClass}" data-node-id="${node.id}">
-              ${toggleBtn}
-              <div class="history-item-content">
-                <div class="history-item-text">${text}</div>
-                ${noteHtml}
-              </div>
-              ${completeBtn}
-              <a href="${wfUrl}" target="_blank" class="history-item-link" title="Open in Workflowy">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
-                  <polyline points="15 3 21 3 21 9" />
-                  <line x1="10" y1="14" x2="21" y2="3" />
-                </svg>
-              </a>
-              <button class="history-item-delete" data-node-id="${node.id}" title="Delete">${trashIcon}</button>
-            </div>
-          `;
-        })
-        .join("");
+    } catch {
+      // Keep cached view visible
+    } finally {
+      hideRefreshIndicator();
     }
-    historyList.innerHTML = html || '<p class="text-muted">No items found</p>';
-    historyList.addEventListener("click", handleHistoryClick);
-
-    const last = groups[groups.length - 1];
-    if (last.hasMore && dest.dailyNoteEnabled) {
-      const nextBeforeDate = parseDateText(last.date || "");
-      if (nextBeforeDate) setupInfiniteScroll(nextBeforeDate);
+  } else {
+    historyList.innerHTML = '<div class="spinner"></div>';
+    try {
+      const groups = await apiRequest(
+        `/history?parent_id=${encodeURIComponent(dest.nodeId)}&daily_note=${dest.dailyNoteEnabled}`
+      );
+      setHistoryCache(dest.id, groups);
+      renderHistoryFromGroups(groups, dest);
+    } catch (e) {
+      historyList.innerHTML = `<p class="text-muted">${escapeHtml(e.message)}</p>`;
     }
-  } catch (e) {
-    historyList.innerHTML = `<p class="text-muted">${escapeHtml(e.message)}</p>`;
   }
+}
+
+function updateCacheItem(nodeId, updater) {
+  const dest = getSelectedDestination();
+  if (!dest) return;
+  const groups = getHistoryCache(dest.id);
+  if (!groups) return;
+  for (const group of groups) {
+    const item = group.items.find((i) => i.id === nodeId);
+    if (item) { updater(item); break; }
+  }
+  setHistoryCache(dest.id, groups);
+}
+
+function removeCacheItem(nodeId) {
+  const dest = getSelectedDestination();
+  if (!dest) return;
+  const groups = getHistoryCache(dest.id);
+  if (!groups) return;
+  for (const group of groups) {
+    group.items = group.items.filter((i) => i.id !== nodeId);
+  }
+  setHistoryCache(dest.id, groups);
+}
+
+function removeCacheDateGroup(dateId) {
+  const dest = getSelectedDestination();
+  if (!dest) return;
+  const groups = getHistoryCache(dest.id);
+  if (!groups) return;
+  setHistoryCache(dest.id, groups.filter((g) => g.dateId !== dateId));
 }
 
 // Handle clicks in history list (toggle notes and complete/uncomplete)
@@ -643,6 +717,7 @@ async function handleHistoryClick(e) {
     completeBtn.disabled = true;
     try {
       await apiRequest(`/nodes/${encodeURIComponent(nodeId)}/complete`, { method: "POST" });
+      updateCacheItem(nodeId, (item) => { item.completedAt = Date.now(); });
       const historyItem = historyList.querySelector(`.history-item[data-node-id="${nodeId}"]`);
       if (historyItem) {
         historyItem.classList.add("completed");
@@ -666,6 +741,7 @@ async function handleHistoryClick(e) {
     uncompleteBtn.disabled = true;
     try {
       await apiRequest(`/nodes/${encodeURIComponent(nodeId)}/uncomplete`, { method: "POST" });
+      updateCacheItem(nodeId, (item) => { item.completedAt = null; });
       const historyItem = historyList.querySelector(`.history-item[data-node-id="${nodeId}"]`);
       if (historyItem) {
         historyItem.classList.remove("completed");
@@ -688,6 +764,7 @@ async function handleHistoryClick(e) {
     deleteBtn.disabled = true;
     try {
       await apiRequest(`/nodes/${encodeURIComponent(nodeId)}`, { method: "DELETE" });
+      removeCacheItem(nodeId);
       historyList.querySelector(`.history-item[data-node-id="${nodeId}"]`)?.remove();
     } catch (err) {
       showToast(err.message, true);
@@ -702,6 +779,7 @@ async function handleHistoryClick(e) {
     datDeleteBtn.disabled = true;
     try {
       await apiRequest(`/nodes/${encodeURIComponent(nodeId)}`, { method: "DELETE" });
+      removeCacheDateGroup(nodeId);
       const header = datDeleteBtn.closest(".history-date-header");
       if (header) {
         let el = header.nextElementSibling;
@@ -851,9 +929,11 @@ function renderDestinationList() {
       saveSettings();
       updateDestinationLabel();
       renderDestinationList();
+      loadHistory();
         });
     div.querySelector(".destination-item-delete").addEventListener("click", (e) => {
       e.stopPropagation();
+      clearHistoryCache(dest.id);
       settings.destinations = settings.destinations.filter((d) => d.id !== dest.id);
       if (settings.selectedDestinationId === dest.id) {
         settings.selectedDestinationId = settings.destinations[0]?.id || "";
@@ -885,14 +965,13 @@ function saveDestination() {
     defaultText: destDefaultText.value,
   };
   settings.destinations.push(dest);
-  if (!settings.selectedDestinationId) {
-    settings.selectedDestinationId = dest.id;
-  }
+  settings.selectedDestinationId = dest.id;
   saveSettings();
   updateDestinationLabel();
   renderDestinationList();
   panelAddDest.classList.add("hidden");
   showToast("Destination added");
+  loadHistory();
 }
 
 // Web Share Target

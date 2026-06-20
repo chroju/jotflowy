@@ -961,6 +961,15 @@ a:hover {
   to { transform: rotate(360deg); }
 }
 
+.history-refresh-indicator {
+  display: flex;
+  justify-content: center;
+  padding: 8px;
+  position: sticky;
+  top: 0;
+  z-index: 20;
+}
+
 @media (min-width: 768px) {
   .modal-content {
     border-radius: var(--radius);
