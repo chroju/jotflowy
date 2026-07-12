@@ -425,6 +425,18 @@ function optimisticInsert(dest, name, note, localDate, itemId) {
 
   setHistoryCache(dest.id, groups);
   renderHistoryFromGroups(groups, dest);
+
+  const freshEl = historyList.querySelector(
+    `.history-item[data-node-id="${CSS.escape(tempNode.id)}"]`
+  );
+  if (freshEl) {
+    freshEl.classList.add("ink-fresh");
+    freshEl.addEventListener(
+      "animationend",
+      () => freshEl.classList.remove("ink-fresh"),
+      { once: true }
+    );
+  }
 }
 
 async function refreshHistoryInBackground(dest) {
@@ -449,12 +461,22 @@ const trashIcon = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" s
   <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
 </svg>`;
 
+function formatItemDateTime(ts) {
+  if (!ts) return "";
+  // Workflowy API returns seconds; optimistic tempNode uses Date.now() (ms)
+  const d = new Date(ts > 1e12 ? ts : ts * 1000);
+  if (isNaN(d.getTime())) return "";
+  const date = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  const time = `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+  return `${date} ${time}`;
+}
+
 function renderHistoryGroupsHtml(groups) {
   let html = "";
   for (const group of groups) {
     if (group.date) {
       const dateWfUrl = group.dateId ? `https://workflowy.com/#/${group.dateId}` : null;
-      const dateText = escapeHtml(stripHtml(group.date));
+      const dateText = escapeHtml(parseDateText(stripHtml(group.date)) || stripHtml(group.date));
       const dateDeleteBtn = group.dateId
         ? `<button class="history-date-delete" data-node-id="${group.dateId}" title="Delete date group">${trashIcon}</button>`
         : "";
@@ -490,7 +512,10 @@ function renderHistoryGroupsHtml(groups) {
                 <polygon points="2,0 8,5 2,10" />
               </svg>
             </button>`
-          : `<span class="history-item-toggle-spacer"></span>`;
+          : "";
+
+        const time = formatItemDateTime(node.createdAt);
+        const timeHtml = time ? `<span class="history-item-time">${time}</span>` : "";
 
         const noteHtml = hasNote
           ? `<div class="history-item-note hidden" data-note-for="${node.id}">${escapeHtml(note)}</div>`
@@ -511,20 +536,25 @@ function renderHistoryGroupsHtml(groups) {
 
         return `
           <div class="history-item${completedClass}" data-node-id="${node.id}">
-            ${toggleBtn}
+            <div class="history-item-meta">
+              ${toggleBtn}
+              ${timeHtml}
+              <span class="history-item-actions">
+                ${completeBtn}
+                <a href="${wfUrl}" target="_blank" class="history-item-link" title="Open in Workflowy">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+                    <polyline points="15 3 21 3 21 9" />
+                    <line x1="10" y1="14" x2="21" y2="3" />
+                  </svg>
+                </a>
+                <button class="history-item-delete" data-node-id="${node.id}" title="Delete">${trashIcon}</button>
+              </span>
+            </div>
             <div class="history-item-content">
               <div class="history-item-text">${text}</div>
               ${noteHtml}
             </div>
-            ${completeBtn}
-            <a href="${wfUrl}" target="_blank" class="history-item-link" title="Open in Workflowy">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
-                <polyline points="15 3 21 3 21 9" />
-                <line x1="10" y1="14" x2="21" y2="3" />
-              </svg>
-            </a>
-            <button class="history-item-delete" data-node-id="${node.id}" title="Delete">${trashIcon}</button>
           </div>
         `;
       })

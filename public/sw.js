@@ -1,4 +1,4 @@
-const CACHE_VERSION = "0.0.1";
+const CACHE_VERSION = "0.0.2";
 const CACHE_NAME = `jotflowy-${CACHE_VERSION}`;
 const STATIC_ASSETS = [
   "/",
