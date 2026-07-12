@@ -11,15 +11,15 @@ export const MainPage: FC = () => (
     <footer class="toolbar">
       <div class="toolbar-left">
         <button id="destination-selector" class="destination-selector" title="Change destination">
-          <iconify-icon class="destination-icon" icon="heroicons:map-pin" width="12" height="12"></iconify-icon>
+          <iconify-icon class="destination-icon" icon="heroicons:map-pin" width="15" height="15"></iconify-icon>
           <span id="destination-label">No destination</span>
-          <iconify-icon class="destination-chevron" icon="heroicons:chevron-down" width="12" height="12"></iconify-icon>
+          <iconify-icon class="destination-chevron" icon="heroicons:chevron-down" width="14" height="14"></iconify-icon>
         </button>
         <div id="destination-dropdown" class="destination-dropdown hidden"></div>
       </div>
       <div class="toolbar-right">
         <button id="btn-settings" class="btn" title="Settings">
-          <iconify-icon icon="heroicons:cog-6-tooth" width="20" height="20"></iconify-icon>
+          <iconify-icon icon="heroicons:cog-6-tooth" width="22" height="22"></iconify-icon>
         </button>
       </div>
     </footer>
@@ -135,8 +135,8 @@ export const MainPage: FC = () => (
             class="editor compose-editor"
             placeholder="Type your note here...&#10;&#10;(Empty line separates name and note)"
           ></textarea>
-          <button id="btn-send" class="btn btn-send btn-small">
-            <iconify-icon icon="heroicons:paper-airplane" width="14" height="14"></iconify-icon>
+          <button id="btn-send" class="btn btn-send">
+            <iconify-icon icon="heroicons:paper-airplane" width="18" height="18"></iconify-icon>
             Send
           </button>
         </div>

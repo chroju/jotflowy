@@ -3,8 +3,8 @@
   "short_name": "Jotflowy",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#2E3440",
-  "theme_color": "#2E3440",
+  "background_color": "#0F1420",
+  "theme_color": "#0F1420",
   "icons": [
     {
       "src": "/icon-192.png",
