@@ -2,9 +2,62 @@ import { describe, it, expect } from "vitest";
 
 // Import utils - we'll need to handle ES modules
 // Since utils.js uses DOM APIs, we need jsdom environment (configured in vitest.config.ts)
-const { applyTemplate, parseContent, escapeRegex, escapeHtml, stripHtml, sanitizeHtml } = await import(
+const { applyTemplate, parseContent, escapeRegex, escapeHtml, stripHtml, sanitizeHtml, migrateSettings } = await import(
   "../../public/scripts/utils.js"
 );
+
+describe("migrateSettings", () => {
+  it("converts dailyNoteEnabled:true destination to calendar type without nodeId", () => {
+    const { settings, changed } = migrateSettings({
+      destinations: [
+        { id: "d1", nodeId: "n1", name: "Journal", dailyNoteEnabled: true, defaultText: "" },
+      ],
+      selectedDestinationId: "d1",
+    });
+    expect(changed).toBe(true);
+    expect(settings.destinations[0]).toEqual({
+      id: "d1",
+      type: "calendar",
+      name: "Journal",
+      defaultText: "",
+    });
+  });
+
+  it("converts dailyNoteEnabled:false destination to node type keeping nodeId", () => {
+    const { settings, changed } = migrateSettings({
+      destinations: [
+        { id: "d1", nodeId: "n1", name: "Inbox", dailyNoteEnabled: false, defaultText: "x" },
+      ],
+      selectedDestinationId: "d1",
+    });
+    expect(changed).toBe(true);
+    expect(settings.destinations[0]).toEqual({
+      id: "d1",
+      type: "node",
+      nodeId: "n1",
+      name: "Inbox",
+      defaultText: "x",
+    });
+  });
+
+  it("leaves already-migrated destinations untouched", () => {
+    const input = {
+      destinations: [
+        { id: "d1", type: "calendar", name: "Daily", defaultText: "" },
+        { id: "d2", type: "node", nodeId: "n2", name: "Inbox", defaultText: "" },
+      ],
+      selectedDestinationId: "d1",
+    };
+    const { settings, changed } = migrateSettings(input);
+    expect(changed).toBe(false);
+    expect(settings).toEqual(input);
+  });
+
+  it("handles empty or missing destinations", () => {
+    expect(migrateSettings({ destinations: [] }).changed).toBe(false);
+    expect(migrateSettings({}).changed).toBe(false);
+  });
+});
 
 describe("applyTemplate", () => {
   const fixedDate = new Date(2026, 1, 14, 9, 30, 45); // 2026-02-14 09:30:45

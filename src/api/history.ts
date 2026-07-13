@@ -1,39 +1,19 @@
-import type { WorkflowyNode } from "../types";
+// Date-key helpers for probing Workflowy native calendar nodes.
+// All arithmetic is done in UTC so results are timezone-independent.
 
-const MONTHS: Record<string, string> = {
-  Jan: "01", Feb: "02", Mar: "03", Apr: "04", May: "05", Jun: "06",
-  Jul: "07", Aug: "08", Sep: "09", Oct: "10", Nov: "11", Dec: "12",
-};
-
-export function parseDateFromNodeName(name: string): string | null {
-  const bracketMatch = name.match(/\[(\d{4}-\d{2}-\d{2})\]/);
-  if (bracketMatch) return bracketMatch[1];
-
-  const workflowyMatch = name.match(/\w{3}, (\w{3}) (\d{1,2}), (\d{4})/);
-  if (workflowyMatch) {
-    const month = MONTHS[workflowyMatch[1]];
-    if (!month) return null;
-    const day = workflowyMatch[2].padStart(2, "0");
-    const year = workflowyMatch[3];
-    return `${year}-${month}-${day}`;
-  }
-
-  return null;
+export function addDays(iso: string, n: number): string {
+  const date = new Date(`${iso}T00:00:00Z`);
+  date.setUTCDate(date.getUTCDate() + n);
+  const y = date.getUTCFullYear();
+  const m = String(date.getUTCMonth() + 1).padStart(2, "0");
+  const d = String(date.getUTCDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
 }
 
-export function filterDailyNotesByBeforeDate(
-  nodes: WorkflowyNode[],
-  beforeDate: string | null,
-  limit = 7
-): WorkflowyNode[] {
-  const dated = nodes
-    .map((node) => ({ node, dateStr: parseDateFromNodeName(node.name || "") }))
-    .filter((item): item is { node: WorkflowyNode; dateStr: string } => item.dateStr !== null)
-    .sort((a, b) => b.dateStr.localeCompare(a.dateStr));
-
-  const filtered = beforeDate
-    ? dated.filter((item) => item.dateStr < beforeDate)
-    : dated;
-
-  return filtered.slice(0, limit).map((item) => item.node);
+export function dateKeysBack(start: string, count: number): string[] {
+  const keys: string[] = [];
+  for (let i = 0; i < count; i++) {
+    keys.push(addDays(start, -i));
+  }
+  return keys;
 }

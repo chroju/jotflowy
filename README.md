@@ -11,7 +11,7 @@ A modern, streamlined note-taking app for Workflowy using the official API. Quic
 
 - **Official Workflowy API Integration** - Uses the stable, official API
 - **Multiple Destinations** - Configure multiple save locations with custom names
-- **Daily Note Support** - Automatically organize notes under daily date headers
+- **Daily Note Support** - Send notes straight into Workflowy's native calendar (today's Day Node)
 - **Template System** - Customize note format with date/time placeholders
 - **Smart URL Expansion** - Automatically converts URLs to Markdown links with page titles on send
 - **PWA Support** - Install as a standalone app, works offline, supports Web Share Target
@@ -45,9 +45,11 @@ npm run deploy
 
 ### 4. Set Up Destinations
 1. In Settings, click "+ Add destination"
-2. Navigate to your desired Workflowy location
+2. Choose the destination type:
+   - **Node** - Navigate to your desired Workflowy location
+   - **Calendar (Daily Note)** - Notes go to today's node in Workflowy's native calendar
 3. Enter a display name
-4. Optionally enable Daily Note and customize the template
+4. Optionally customize the template
 5. Click Save
 
 ## Usage
@@ -83,12 +85,15 @@ When you send a note containing URLs, Jotflowy automatically:
 
 ### Daily Note
 
-When Daily Note is enabled for a destination:
+With a Calendar (Daily Note) destination:
 
-- Notes are automatically organized under a daily header (YYYY-MM-DD format)
-- Multiple notes on the same day go under the same header
-- Compatible with [Workflowy Calendar](https://workflowy.com/learn/calendar/) - daily notes appear in your calendar view
+- Notes are sent to today's Day Node in [Workflowy's native calendar](https://workflowy.com/help/calendar/) - the same node Workflowy opens for "Today"
+- Day Nodes are created on demand by Workflowy, so no duplicate date nodes are ever created
+- History shows your recent days with links to each Day Node
 - Great for journaling, daily logs, or time-based organization
+
+> [!NOTE]
+> Older versions of Jotflowy created plain-text `[YYYY-MM-DD]` nodes under a destination of your choice. Those nodes are no longer shown in history. To merge them into the native calendar, use Workflowy's [calendar migration tools](https://workflowy.com/help/calendar/).
 
 ## Development
 

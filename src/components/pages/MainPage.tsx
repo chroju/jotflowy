@@ -93,17 +93,21 @@ export const MainPage: FC = () => (
               {/* Add destination sub-panel */}
               <div id="panel-add-destination" class="sub-panel hidden">
                 <h3>Add Destination</h3>
+                <div class="checkbox-group" id="dest-type-group">
+                  <label>
+                    <input type="radio" name="dest-type" value="node" checked />
+                    Node
+                  </label>
+                  <label>
+                    <input type="radio" name="dest-type" value="calendar" />
+                    Calendar (Daily Note)
+                  </label>
+                </div>
                 <div id="node-tree" class="node-tree">
                   <p class="text-muted">Loading nodes...</p>
                 </div>
                 <div class="input-group">
                   <input id="dest-name-input" type="text" placeholder="Display name" class="input" />
-                </div>
-                <div class="checkbox-group">
-                  <label>
-                    <input id="dest-daily-note" type="checkbox" />
-                    Enable Daily Note
-                  </label>
                 </div>
                 <div class="input-group">
                   <label class="input-label">Template</label>
