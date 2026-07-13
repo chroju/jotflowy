@@ -157,6 +157,19 @@ html, body {
   text-overflow: ellipsis;
 }
 
+/* Calendar (Daily Note) destination type marker */
+.dest-type-icon {
+  flex-shrink: 0;
+  opacity: 0.7;
+  vertical-align: -1px;
+}
+
+/* In inline text contexts; flex containers space it via gap */
+#destination-label .dest-type-icon,
+.destination-item-name .dest-type-icon {
+  margin-right: 6px;
+}
+
 .destination-chevron {
   flex-shrink: 0;
   opacity: 0.5;
@@ -533,15 +546,6 @@ html, body {
 .destination-item-name {
   flex: 1;
   font-size: 14px;
-}
-
-.destination-item-badge {
-  font-size: 11px;
-  color: var(--bg);
-  background: var(--success);
-  padding: 2px 6px;
-  border-radius: var(--radius-sm);
-  font-weight: 600;
 }
 
 .destination-item-delete {

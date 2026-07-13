@@ -3,8 +3,8 @@ import { cors } from "hono/cors";
 import { setCookie, getCookie } from "hono/cookie";
 import { WorkflowyClient } from "./workflowy-v1";
 import { encrypt, decrypt } from "./crypto";
-import { filterDailyNotesByBeforeDate, parseDateFromNodeName } from "./history";
-import type { Env } from "../types";
+import { addDays, dateKeysBack } from "./history";
+import type { Env, HistoryGroup, WorkflowyNode } from "../types";
 
 type AppEnv = { Bindings: Env };
 
@@ -88,52 +88,87 @@ api.post("/nodes", async (c) => {
 api.post("/send", async (c) => {
   const apiKey = await getApiKey(c as never);
   const body = await c.req.json<{
-    destinationId: string;
+    targetType: "node" | "calendar";
+    parentId?: string;
     name: string;
     note?: string;
-    dailyNoteEnabled: boolean;
-    localDate?: string;
   }>();
-  const client = new WorkflowyClient(apiKey);
 
-  let parentId = body.destinationId;
-  if (body.dailyNoteEnabled) {
-    parentId = await client.getOrCreateDailyNote(parentId, body.localDate);
+  // Workflowy creates the calendar day node on demand; "today" resolves
+  // server-side, so no date handling is needed here.
+  let parentId: string;
+  if (body.targetType === "calendar") {
+    parentId = "today";
+  } else if (body.targetType === "node") {
+    if (!body.parentId) return c.json({ error: "parentId required" }, 400);
+    parentId = body.parentId;
+  } else {
+    return c.json({ error: "invalid targetType" }, 400);
   }
 
+  const client = new WorkflowyClient(apiKey);
   const result = await client.createNode(parentId, body.name, body.note);
   return c.json(result);
 });
 
+const HISTORY_GROUP_LIMIT = 7;
+// Cap per request; keep probes + dateId lookups well under the
+// Cloudflare Workers subrequest limit (50).
+const MAX_SCAN_DAYS = 31;
+const PROBE_BATCH_SIZE = 7;
+
 api.get("/history", async (c) => {
   const apiKey = await getApiKey(c as never);
-  const parentId = c.req.query("parent_id");
-  if (!parentId) return c.json({ error: "parent_id required" }, 400);
-
-  const dailyNote = c.req.query("daily_note") === "true";
-  const beforeDate = c.req.query("before_date") || null;
   const client = new WorkflowyClient(apiKey);
 
-  if (dailyNote) {
-    const dateNodes = await client.getNodes(parentId);
-    const recent = filterDailyNotesByBeforeDate(dateNodes, beforeDate);
+  if (c.req.query("calendar") === "true") {
+    const beforeDate = c.req.query("before_date");
+    const localDate = c.req.query("local_date");
+    // Scan backward from before_date - 1 when paginating; on initial load
+    // start at local_date + 1 to cover client/Workflowy timezone skew.
+    const anchor = beforeDate || localDate;
+    if (!anchor || !/^\d{4}-\d{2}-\d{2}$/.test(anchor)) {
+      return c.json({ error: "local_date or before_date (YYYY-MM-DD) required" }, 400);
+    }
+    const start = beforeDate ? addDays(beforeDate, -1) : addDays(anchor, 1);
 
-    const results: { date: string; dateId: string; items: typeof dateNodes; hasMore: boolean }[] = [];
-    for (const dateNode of recent) {
-      const children = await client.getNodes(dateNode.id);
-      if (children.length === 0) continue;
-      results.push({ date: dateNode.name, dateId: dateNode.id, items: children, hasMore: false });
+    const collected: { date: string; items: WorkflowyNode[] }[] = [];
+    let scanned = 0;
+    while (scanned < MAX_SCAN_DAYS && collected.length < HISTORY_GROUP_LIMIT) {
+      const batchKeys = dateKeysBack(
+        addDays(start, -scanned),
+        Math.min(PROBE_BATCH_SIZE, MAX_SCAN_DAYS - scanned)
+      );
+      const children = await Promise.all(batchKeys.map((key) => client.getCalendarNodes(key)));
+      batchKeys.forEach((key, i) => {
+        if (children[i].length > 0) collected.push({ date: key, items: children[i] });
+      });
+      scanned += batchKeys.length;
     }
 
-    const oldestDate = recent.length > 0 ? parseDateFromNodeName(recent[recent.length - 1].name || "") : null;
-    const hasMore = oldestDate !== null && filterDailyNotesByBeforeDate(dateNodes, oldestDate).length > 0;
+    // Filled the page => likely more below; scan cap reached => end of scroll.
+    const hasMore = collected.length >= HISTORY_GROUP_LIMIT;
+    const recent = collected.slice(0, HISTORY_GROUP_LIMIT);
+
+    const dayNodes = await Promise.all(
+      recent.map((group) => client.getNode(group.date).catch(() => null))
+    );
+    const results: HistoryGroup[] = recent.map((group, i) => ({
+      date: group.date,
+      dateId: dayNodes[i]?.id ?? null,
+      items: group.items,
+      hasMore: false,
+    }));
     if (results.length > 0) results[results.length - 1].hasMore = hasMore;
 
     return c.json(results);
   }
 
+  const parentId = c.req.query("parent_id");
+  if (!parentId) return c.json({ error: "parent_id required" }, 400);
+
   const nodes = await client.getNodes(parentId);
-  return c.json(nodes.map((n) => ({ date: null, items: [n], hasMore: false })));
+  return c.json(nodes.map((n) => ({ date: null, dateId: null, items: [n], hasMore: false })));
 });
 
 // Complete node

@@ -16,6 +16,22 @@ export function applyTemplate(template, content, date = new Date()) {
   return result;
 }
 
+// Migrate legacy destinations (dailyNoteEnabled flag) to the type field.
+// Calendar destinations write to Workflowy's native calendar, so the old
+// parent nodeId is dropped. Returns { settings, changed }; when changed,
+// the caller must persist the settings and drop the old history cache.
+export function migrateSettings(settings) {
+  let changed = false;
+  for (const dest of settings.destinations || []) {
+    if (dest.type) continue;
+    dest.type = dest.dailyNoteEnabled ? "calendar" : "node";
+    delete dest.dailyNoteEnabled;
+    if (dest.type === "calendar") delete dest.nodeId;
+    changed = true;
+  }
+  return { settings, changed };
+}
+
 // Parse editor content: split name and note by empty line
 export function parseContent(text) {
   const parts = text.split(/\n\s*\n/);

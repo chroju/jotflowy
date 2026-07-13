@@ -1,4 +1,4 @@
-import type { WorkflowyNode, WorkflowyNodesResponse, CreateNodeResponse } from "../types";
+import type { WorkflowyNode, WorkflowyNodesResponse, WorkflowyNodeResponse, CreateNodeResponse } from "../types";
 
 const BASE_URL = "https://beta.workflowy.com/api/v1";
 
@@ -9,8 +9,8 @@ export class WorkflowyClient {
     this.apiKey = apiKey;
   }
 
-  private async request<T>(path: string, options: RequestInit = {}): Promise<T> {
-    const res = await fetch(`${BASE_URL}${path}`, {
+  private fetchApi(path: string, options: RequestInit = {}): Promise<Response> {
+    return fetch(`${BASE_URL}${path}`, {
       ...options,
       headers: {
         Authorization: `Bearer ${this.apiKey}`,
@@ -18,6 +18,21 @@ export class WorkflowyClient {
         ...options.headers,
       },
     });
+  }
+
+  private async request<T>(path: string, options: RequestInit = {}): Promise<T> {
+    const res = await this.fetchApi(path, options);
+    if (!res.ok) {
+      const text = await res.text();
+      throw new Error(`Workflowy API error ${res.status}: ${text}`);
+    }
+    return res.json() as Promise<T>;
+  }
+
+  // 404 means the calendar node has not been created yet
+  private async request404AsNull<T>(path: string): Promise<T | null> {
+    const res = await this.fetchApi(path);
+    if (res.status === 404) return null;
     if (!res.ok) {
       const text = await res.text();
       throw new Error(`Workflowy API error ${res.status}: ${text}`);
@@ -44,32 +59,22 @@ export class WorkflowyClient {
     });
   }
 
-  async findDailyNote(parentId: string, dateStr: string): Promise<WorkflowyNode | null> {
-    const nodes = await this.getNodes(parentId);
-    const date = new Date(dateStr + "T00:00:00");
-    const weekday = date.toLocaleDateString("en-US", { weekday: "short" });
-    const month = date.toLocaleDateString("en-US", { month: "short" });
-    const day = date.getDate();
-    const year = date.getFullYear();
-    const workflowyDateText = `${weekday}, ${month} ${day}, ${year}`;
-
-    for (const node of nodes) {
-      const text = node.name || "";
-      if (text.includes(workflowyDateText) || text.includes(dateStr)) {
-        return node;
-      }
-    }
-    return null;
+  // Children of a native calendar node (date key such as "2026-07-13").
+  // 404 = the calendar node doesn't exist yet, i.e. no notes for that day.
+  async getCalendarNodes(dateKey: string): Promise<WorkflowyNode[]> {
+    const data = await this.request404AsNull<WorkflowyNodesResponse>(
+      `/nodes?parent_id=${encodeURIComponent(dateKey)}`
+    );
+    if (!data) return [];
+    return data.nodes.sort((a, b) => a.priority - b.priority);
   }
 
-  async getOrCreateDailyNote(parentId: string, dateStr?: string): Promise<string> {
-    const targetDate = dateStr || formatDate(new Date());
-    const existing = await this.findDailyNote(parentId, targetDate);
-    if (existing) return existing.id;
-
-    const formattedDate = `[${targetDate}]`;
-    const result = await this.createNode(parentId, formattedDate, undefined, "bottom");
-    return result.item_id;
+  // Single node lookup. Accepts node IDs and calendar keys ("today", "YYYY-MM-DD").
+  async getNode(idOrKey: string): Promise<WorkflowyNode | null> {
+    const data = await this.request404AsNull<WorkflowyNodeResponse>(
+      `/nodes/${encodeURIComponent(idOrKey)}`
+    );
+    return data?.node ?? null;
   }
 
   async completeNode(nodeId: string): Promise<void> {
@@ -89,11 +94,4 @@ export class WorkflowyClient {
       method: "DELETE",
     });
   }
-}
-
-function formatDate(date: Date): string {
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, "0");
-  const d = String(date.getDate()).padStart(2, "0");
-  return `${y}-${m}-${d}`;
 }

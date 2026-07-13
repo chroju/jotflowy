@@ -1,4 +1,4 @@
-import { applyTemplate, parseContent, escapeRegex, escapeHtml, stripHtml, sanitizeHtml, applyTypographySettings, FONT_FAMILY_MAP } from "./utils.js";
+import { applyTemplate, parseContent, escapeRegex, escapeHtml, stripHtml, sanitizeHtml, applyTypographySettings, FONT_FAMILY_MAP, migrateSettings } from "./utils.js";
 
 // State
 let settings = loadSettings();
@@ -32,7 +32,7 @@ const btnAddDestination = document.getElementById("btn-add-destination");
 const panelAddDest = document.getElementById("panel-add-destination");
 const nodeTree = document.getElementById("node-tree");
 const destNameInput = document.getElementById("dest-name-input");
-const destDailyNote = document.getElementById("dest-daily-note");
+const destTypeRadios = document.querySelectorAll('input[name="dest-type"]');
 const destDefaultText = document.getElementById("dest-default-text");
 const btnSaveDestination = document.getElementById("btn-save-destination");
 const btnCancelDestination = document.getElementById("btn-cancel-destination");
@@ -160,9 +160,13 @@ function bindEvents() {
     selectedNodeId = null;
     nodeTreePath = [];
     destNameInput.value = "";
-    destDailyNote.checked = false;
+    setDestType("node");
     destDefaultText.value = "";
     loadNodeTree();
+  });
+
+  destTypeRadios.forEach((radio) => {
+    radio.addEventListener("change", () => updateDestTypeUI(getDestType()));
   });
 
   btnSaveDestination.addEventListener("click", saveDestination);
@@ -203,7 +207,7 @@ function toggleDestinationDropdown() {
     const isActive = dest.id === settings.selectedDestinationId;
     const item = document.createElement("div");
     item.className = "destination-dropdown-item" + (isActive ? " active" : "");
-    item.textContent = dest.name;
+    item.innerHTML = destinationNameHtml(dest);
     item.addEventListener("click", (e) => {
       e.stopPropagation();
       settings.selectedDestinationId = dest.id;
@@ -221,7 +225,16 @@ function toggleDestinationDropdown() {
 function loadSettings() {
   try {
     const raw = localStorage.getItem("jotflowy_settings");
-    if (raw) return JSON.parse(raw);
+    if (raw) {
+      const { settings: migrated, changed } = migrateSettings(JSON.parse(raw));
+      if (changed) {
+        localStorage.setItem("jotflowy_settings", JSON.stringify(migrated));
+        // Old caches hold "[YYYY-MM-DD]" group keys, incompatible with the
+        // ISO date keys used after migration
+        localStorage.removeItem("jotflowy_history_cache");
+      }
+      return migrated;
+    }
   } catch {}
   return { destinations: [], selectedDestinationId: "", fontSize: 16, lineHeight: 1.8, fontFamily: "gothic" };
 }
@@ -265,9 +278,21 @@ function getSelectedDestination() {
   return settings.destinations.find((d) => d.id === settings.selectedDestinationId) || null;
 }
 
+// Marks calendar destinations as a kind, not a node name
+const calendarTypeIcon = `<svg class="dest-type-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <rect x="3" y="4" width="18" height="18" rx="2" />
+  <line x1="16" y1="2" x2="16" y2="6" />
+  <line x1="8" y1="2" x2="8" y2="6" />
+  <line x1="3" y1="10" x2="21" y2="10" />
+</svg>`;
+
+function destinationNameHtml(dest) {
+  return `${dest.type === "calendar" ? calendarTypeIcon : ""}${escapeHtml(dest.name)}`;
+}
+
 function updateDestinationLabel() {
   const dest = getSelectedDestination();
-  destinationLabel.textContent = dest ? dest.name : "No destination";
+  destinationLabel.innerHTML = dest ? destinationNameHtml(dest) : "No destination";
 }
 
 
@@ -342,6 +367,20 @@ async function expandUrls(text) {
 }
 
 
+function todayLocalDate() {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+}
+
+function historyQuery(dest, beforeDate) {
+  if (dest.type === "calendar") {
+    return beforeDate
+      ? `/history?calendar=true&before_date=${encodeURIComponent(beforeDate)}`
+      : `/history?calendar=true&local_date=${todayLocalDate()}`;
+  }
+  return `/history?parent_id=${encodeURIComponent(dest.nodeId)}`;
+}
+
 // Send
 async function handleSend() {
   const text = editor.value.trim();
@@ -359,17 +398,17 @@ async function handleSend() {
     const { name, note } = parseContent(expandedText);
     const finalName = dest.defaultText ? applyTemplate(dest.defaultText, name) : name;
 
-    const now = new Date();
-    const localDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    // The server sends calendar notes to Workflowy's "today"; localDate is
+    // only used client-side for optimistic history grouping
+    const localDate = todayLocalDate();
 
     const result = await apiRequest("/send", {
       method: "POST",
       body: JSON.stringify({
-        destinationId: dest.nodeId,
+        targetType: dest.type,
+        parentId: dest.type === "node" ? dest.nodeId : undefined,
         name: finalName,
         note,
-        dailyNoteEnabled: dest.dailyNoteEnabled,
-        localDate: dest.dailyNoteEnabled ? localDate : undefined,
       }),
     });
 
@@ -399,17 +438,14 @@ function optimisticInsert(dest, name, note, localDate, itemId) {
 
   let groups = getHistoryCache(dest.id) || [];
 
-  if (dest.dailyNoteEnabled) {
-    const todayIndex = groups.findIndex((g) => {
-      if (!g.date) return false;
-      return parseDateText(g.date) === localDate;
-    });
+  if (dest.type === "calendar") {
+    const todayIndex = groups.findIndex((g) => g.date === localDate);
 
     if (todayIndex >= 0) {
       groups[todayIndex].items.push(tempNode);
     } else {
       groups.unshift({
-        date: `[${localDate}]`,
+        date: localDate,
         dateId: null,
         items: [tempNode],
         hasMore: false,
@@ -441,9 +477,7 @@ function optimisticInsert(dest, name, note, localDate, itemId) {
 
 async function refreshHistoryInBackground(dest) {
   try {
-    const groups = await apiRequest(
-      `/history?parent_id=${encodeURIComponent(dest.nodeId)}&daily_note=${dest.dailyNoteEnabled}`
-    );
+    const groups = await apiRequest(historyQuery(dest));
     setHistoryCache(dest.id, groups);
     if (getSelectedDestination()?.id === dest.id) {
       renderHistoryFromGroups(groups, dest);
@@ -476,7 +510,7 @@ function renderHistoryGroupsHtml(groups) {
   for (const group of groups) {
     if (group.date) {
       const dateWfUrl = group.dateId ? `https://workflowy.com/#/${group.dateId}` : null;
-      const dateText = escapeHtml(parseDateText(stripHtml(group.date)) || stripHtml(group.date));
+      const dateText = escapeHtml(group.date);
       const dateDeleteBtn = group.dateId
         ? `<button class="history-date-delete" data-node-id="${group.dateId}" title="Delete date group">${trashIcon}</button>`
         : "";
@@ -574,9 +608,8 @@ function renderHistoryFromGroups(groups, dest) {
 
   if (historyObserver) { historyObserver.disconnect(); historyObserver = null; }
   const last = groups[groups.length - 1];
-  if (last.hasMore && dest.dailyNoteEnabled) {
-    const nextBeforeDate = parseDateText(last.date || "");
-    if (nextBeforeDate) setupInfiniteScroll(nextBeforeDate);
+  if (last.hasMore && dest.type === "calendar" && last.date) {
+    setupInfiniteScroll(last.date);
   }
 }
 
@@ -618,13 +651,11 @@ function setupInfiniteScroll(beforeDate) {
 
 async function loadMoreHistory(beforeDate) {
   const dest = getSelectedDestination();
-  if (!dest || !dest.dailyNoteEnabled) return;
+  if (!dest || dest.type !== "calendar") return;
 
   const sentinel = historyList.querySelector(".history-sentinel");
   try {
-    const groups = await apiRequest(
-      `/history?parent_id=${encodeURIComponent(dest.nodeId)}&daily_note=true&before_date=${encodeURIComponent(beforeDate)}`
-    );
+    const groups = await apiRequest(historyQuery(dest, beforeDate));
     if (sentinel) sentinel.remove();
     if (historyObserver) { historyObserver.disconnect(); historyObserver = null; }
 
@@ -636,24 +667,12 @@ async function loadMoreHistory(beforeDate) {
     historyList.append(...container.childNodes);
 
     const last = groups[groups.length - 1];
-    if (last.hasMore) {
-      const nextBeforeDate = parseDateText(last.date || "");
-      if (nextBeforeDate) setupInfiniteScroll(nextBeforeDate);
+    if (last.hasMore && last.date) {
+      setupInfiniteScroll(last.date);
     }
   } catch (e) {
     if (sentinel) sentinel.innerHTML = `<p class="text-muted">${escapeHtml(e.message)}</p>`;
   }
-}
-
-function parseDateText(text) {
-  const bracketMatch = text.match(/\[(\d{4}-\d{2}-\d{2})\]/);
-  if (bracketMatch) return bracketMatch[1];
-  const wfMatch = text.match(/\w{3}, (\w{3}) (\d{1,2}), (\d{4})/);
-  if (wfMatch) {
-    const months = { Jan:"01",Feb:"02",Mar:"03",Apr:"04",May:"05",Jun:"06",Jul:"07",Aug:"08",Sep:"09",Oct:"10",Nov:"11",Dec:"12" };
-    return `${wfMatch[3]}-${months[wfMatch[1]]}-${wfMatch[2].padStart(2,"0")}`;
-  }
-  return null;
 }
 
 // History
@@ -671,9 +690,7 @@ async function loadHistory() {
     renderHistoryFromGroups(cached, dest);
     showRefreshIndicator();
     try {
-      const groups = await apiRequest(
-        `/history?parent_id=${encodeURIComponent(dest.nodeId)}&daily_note=${dest.dailyNoteEnabled}`
-      );
+      const groups = await apiRequest(historyQuery(dest));
       setHistoryCache(dest.id, groups);
       if (getSelectedDestination()?.id === dest.id) {
         renderHistoryFromGroups(groups, dest);
@@ -686,9 +703,7 @@ async function loadHistory() {
   } else {
     historyList.innerHTML = '<div class="spinner"></div>';
     try {
-      const groups = await apiRequest(
-        `/history?parent_id=${encodeURIComponent(dest.nodeId)}&daily_note=${dest.dailyNoteEnabled}`
-      );
+      const groups = await apiRequest(historyQuery(dest));
       setHistoryCache(dest.id, groups);
       renderHistoryFromGroups(groups, dest);
     } catch (e) {
@@ -938,6 +953,25 @@ function renderNodeTree(nodes) {
 }
 
 // Destination management
+function getDestType() {
+  return document.querySelector('input[name="dest-type"]:checked')?.value || "node";
+}
+
+function setDestType(type) {
+  destTypeRadios.forEach((radio) => {
+    radio.checked = radio.value === type;
+  });
+  updateDestTypeUI(type);
+}
+
+function updateDestTypeUI(type) {
+  // Calendar destinations write to Workflowy's native calendar; there is no
+  // node to pick and the name is fixed to "Daily Note"
+  const isCalendar = type === "calendar";
+  nodeTree.classList.toggle("hidden", isCalendar);
+  destNameInput.closest(".input-group").classList.toggle("hidden", isCalendar);
+}
+
 function renderDestinationList() {
   destinationList.innerHTML = "";
   if (!settings.destinations.length) {
@@ -949,8 +983,7 @@ function renderDestinationList() {
     const div = document.createElement("div");
     div.className = "destination-item" + (isActive ? " active" : "");
     div.innerHTML = `
-      <span class="destination-item-name">${escapeHtml(dest.name)}</span>
-      ${dest.dailyNoteEnabled ? '<span class="destination-item-badge">Daily</span>' : ""}
+      <span class="destination-item-name">${destinationNameHtml(dest)}</span>
       <button class="destination-item-delete" data-id="${dest.id}">&times;</button>
     `;
     div.addEventListener("click", (e) => {
@@ -977,11 +1010,12 @@ function renderDestinationList() {
 }
 
 function saveDestination() {
-  if (!selectedNodeId) {
+  const type = getDestType();
+  if (type === "node" && !selectedNodeId) {
     showToast("Select a node first", true);
     return;
   }
-  const name = destNameInput.value.trim();
+  const name = type === "calendar" ? "Daily Note" : destNameInput.value.trim();
   if (!name) {
     showToast("Enter a name", true);
     return;
@@ -989,9 +1023,9 @@ function saveDestination() {
 
   const dest = {
     id: crypto.randomUUID(),
-    nodeId: selectedNodeId,
+    type,
+    nodeId: type === "node" ? selectedNodeId : undefined,
     name,
-    dailyNoteEnabled: destDailyNote.checked,
     defaultText: destDefaultText.value,
   };
   settings.destinations.push(dest);

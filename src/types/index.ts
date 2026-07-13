@@ -1,8 +1,8 @@
 export interface Destination {
   id: string;
-  nodeId: string;
+  type: "node" | "calendar";
+  nodeId?: string;
   name: string;
-  dailyNoteEnabled: boolean;
   defaultText: string;
 }
 
@@ -28,6 +28,17 @@ export interface WorkflowyNodesResponse {
 
 export interface CreateNodeResponse {
   item_id: string;
+}
+
+export interface WorkflowyNodeResponse {
+  node: WorkflowyNode;
+}
+
+export interface HistoryGroup {
+  date: string | null;
+  dateId: string | null;
+  items: WorkflowyNode[];
+  hasMore: boolean;
 }
 
 export interface Env {

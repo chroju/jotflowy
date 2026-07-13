@@ -46,7 +46,8 @@ npm run test:ui    # vitest UI起動
 ## Key Concepts
 
 - **認証**: APIキーはHTTP-only Cookieに暗号化して保存
-- **Daily Note**: Workflowyカレンダーと互換のある日付ノード形式 `[YYYY-MM-DD]`
+- **Daily Note**: Workflowyネイティブカレンダーを使用。送信は `parent_id="today"`（Day NodeはWF側でオンデマンド作成）、履歴は日付キー `YYYY-MM-DD` を1日ずつ遡ってプローブ（404 = その日ノート無し）
+- **Destination**: `type: "node" | "calendar"`。旧 `dailyNoteEnabled` は `migrateSettings` がLocalStorage読み込み時に自動変換
 - **Template**: `{content}`, `{YYYY}`, `{MM}`, `{DD}`, `{HH}`, `{mm}`, `{ss}` プレースホルダー対応
 - **URL展開**: 送信時にプレーンURLをMarkdownリンクに自動変換
 

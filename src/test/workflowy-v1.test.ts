@@ -85,48 +85,74 @@ describe("WorkflowyClient", () => {
     });
   });
 
-  describe("findDailyNote", () => {
-    it("finds node matching ISO date string", async () => {
-      const nodes = [makeNode({ id: "daily-1", name: "[2026-02-14]" })];
+  describe("getCalendarNodes", () => {
+    it("returns nodes sorted by priority", async () => {
+      const nodes = [
+        makeNode({ id: "b", priority: 2 }),
+        makeNode({ id: "a", priority: 1 }),
+      ];
       mockFetch.mockReturnValue(okResponse({ nodes }));
 
-      const result = await client.findDailyNote("parent-1", "2026-02-14");
-      expect(result?.id).toBe("daily-1");
+      const result = await client.getCalendarNodes("2026-02-14");
+      expect(result[0].id).toBe("a");
+      expect(result[1].id).toBe("b");
     });
 
-    it("finds node matching Workflowy date format", async () => {
-      const nodes = [makeNode({ id: "daily-1", name: "Sat, Feb 14, 2026" })];
-      mockFetch.mockReturnValue(okResponse({ nodes }));
-
-      const result = await client.findDailyNote("parent-1", "2026-02-14");
-      expect(result?.id).toBe("daily-1");
+    it("returns empty array on 404 (calendar node not created yet)", async () => {
+      mockFetch.mockReturnValue(
+        Promise.resolve(
+          new Response(JSON.stringify({ code: "not_found" }), { status: 404 })
+        )
+      );
+      const result = await client.getCalendarNodes("1999-01-05");
+      expect(result).toEqual([]);
     });
 
-    it("returns null when no matching node", async () => {
+    it("throws on other HTTP errors", async () => {
+      mockFetch.mockReturnValue(
+        Promise.resolve(new Response("Server Error", { status: 500 }))
+      );
+      await expect(client.getCalendarNodes("2026-02-14")).rejects.toThrow("500");
+    });
+
+    it("calls correct endpoint with date key as parent_id", async () => {
       mockFetch.mockReturnValue(okResponse({ nodes: [] }));
-      const result = await client.findDailyNote("parent-1", "2026-02-14");
-      expect(result).toBeNull();
+      await client.getCalendarNodes("2026-02-14");
+      expect(mockFetch).toHaveBeenCalledWith(
+        expect.stringContaining("parent_id=2026-02-14"),
+        expect.any(Object)
+      );
     });
   });
 
-  describe("getOrCreateDailyNote", () => {
-    it("returns existing node ID if found", async () => {
-      const nodes = [makeNode({ id: "existing-daily", name: "[2026-02-14]" })];
-      mockFetch.mockReturnValue(okResponse({ nodes }));
-
-      const id = await client.getOrCreateDailyNote("parent-1", "2026-02-14");
-      expect(id).toBe("existing-daily");
-      expect(mockFetch).toHaveBeenCalledTimes(1);
+  describe("getNode", () => {
+    it("returns the node for a date key", async () => {
+      mockFetch.mockReturnValue(
+        okResponse({ node: makeNode({ id: "day-node-id" }) })
+      );
+      const result = await client.getNode("2026-02-14");
+      expect(result?.id).toBe("day-node-id");
+      expect(mockFetch).toHaveBeenCalledWith(
+        expect.stringContaining("/nodes/2026-02-14"),
+        expect.any(Object)
+      );
     });
 
-    it("creates node if not found and returns new ID", async () => {
-      mockFetch
-        .mockReturnValueOnce(okResponse({ nodes: [] }))
-        .mockReturnValueOnce(okResponse({ item_id: "new-daily" }));
+    it("returns null on 404", async () => {
+      mockFetch.mockReturnValue(
+        Promise.resolve(
+          new Response(JSON.stringify({ code: "not_found" }), { status: 404 })
+        )
+      );
+      const result = await client.getNode("1999-01-05");
+      expect(result).toBeNull();
+    });
 
-      const id = await client.getOrCreateDailyNote("parent-1", "2026-02-14");
-      expect(id).toBe("new-daily");
-      expect(mockFetch).toHaveBeenCalledTimes(2);
+    it("throws on other HTTP errors", async () => {
+      mockFetch.mockReturnValue(
+        Promise.resolve(new Response("Server Error", { status: 500 }))
+      );
+      await expect(client.getNode("2026-02-14")).rejects.toThrow("500");
     });
   });
 
