@@ -1,9 +1,10 @@
-const CACHE_VERSION = "0.0.2";
+const CACHE_VERSION = "0.0.3";
 const CACHE_NAME = `jotflowy-${CACHE_VERSION}`;
 const STATIC_ASSETS = [
   "/",
   "/styles/main.css",
   "/scripts/client.js",
+  "/scripts/utils.js",
   "/manifest.json",
 ];
 
